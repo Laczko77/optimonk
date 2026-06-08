@@ -79,9 +79,7 @@ src/
   main.js, style.css      # entry point + Tailwind import
 
 docs/
-  application.md          # project scope
   backlog.md              # the iteration backlog
-  ui/                     # markdown UI design specs (source of truth for each UI iteration)
   writeup.md              # assignment write-up (Hungarian)
 
 tests/                    # Vitest unit + @vue/test-utils component tests
