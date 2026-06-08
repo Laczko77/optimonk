@@ -56,8 +56,19 @@ emlékei (függvény-szignatúrák, adatok, konvenciók) iterációk között is
 ## 5. Mit fejlesztenék a v2-ben
 
 Valódi adatforrás (adatbázis) a mostani, statikus JSON-t kiszolgáló végpont mögé; útválasztó és
-megosztható mély-linkek; gazdagabb,
-interaktív diagramok; több és **hangolható** javaslat-szabály; e2e- és akadálymentességi
+megosztható mély-linkek; gazdagabb, interaktív diagramok; e2e- és akadálymentességi
 (képernyőolvasó / billentyűzet) tesztlefedettség; több kampány **összehasonlítása**; a felület már
 most teljesen magyar, így a v2-ben a **több nyelv közti váltás** (valódi i18n) jönne; valamint a
 kiválasztott állapot megőrzése (perzisztencia).
+
+Néhány konkrét pont, ami nagyobb / valós adatnál válik fontossá:
+
+- **Nagy kampánylista kezelése** — keresés, szűrés és lapozás (vagy lista-virtualizálás), hogy sok
+  száz kampánynál is gyors maradjon; a kampány-kikeresés indexelése (`Map`) a mostani lineáris
+  keresés helyett.
+- **Adat-épségi ellenőrzés** — a valós adatban előfordulhat hibás sor (pl. `proceeds > views`), ami
+  most negatív lemorzsolódást adna; egy egyszerű korlátozás (clamp) és a gyanús sorok jelzése
+  megvédené a számokat.
+- **Hangolható, relatív javaslat-szabályok** — a mostani fix küszöbök (pl. 7% / 12% konverzió)
+  helyett kampánytípushoz / eszközhöz igazított, illetve a portfólió átlagához viszonyított
+  küszöbök, és új lépéstípusok (pl. `sms`, `quiz`) lefedése a javaslatokban.
