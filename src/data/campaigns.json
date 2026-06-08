@@ -1,0 +1,46 @@
+[
+  {
+    "id": "camp_001",
+    "name": "Welcome Discount Popup",
+    "device": "desktop",
+    "steps": [
+      { "name": "Teaser shown", "type": "teaser", "views": 8000, "proceeds": 3220 },
+      { "name": "Email capture", "type": "email", "views": 3220, "proceeds": 870 },
+      { "name": "Discount reveal", "type": "offer", "views": 870, "proceeds": 720 },
+      { "name": "Coupon redeemed", "type": "conversion", "views": 720, "proceeds": 656 }
+    ]
+  },
+  {
+    "id": "camp_002",
+    "name": "Free Shipping Bar",
+    "device": "mobile",
+    "steps": [
+      { "name": "Bar shown", "type": "teaser", "views": 12000, "proceeds": 4200 },
+      { "name": "Cart opened", "type": "engagement", "views": 4200, "proceeds": 2100 },
+      { "name": "Checkout complete", "type": "conversion", "views": 2100, "proceeds": 1260 }
+    ]
+  },
+  {
+    "id": "camp_003",
+    "name": "Newsletter Signup Modal",
+    "device": "tablet",
+    "steps": [
+      { "name": "Modal shown", "type": "teaser", "views": 5000, "proceeds": 2000 },
+      { "name": "Name entered", "type": "form", "views": 2000, "proceeds": 1500 },
+      { "name": "Email entered", "type": "email", "views": 1500, "proceeds": 900 },
+      { "name": "Preferences chosen", "type": "form", "views": 900, "proceeds": 800 },
+      { "name": "Subscribed", "type": "conversion", "views": 800, "proceeds": 700 }
+    ]
+  },
+  {
+    "id": "camp_004",
+    "name": "Exit-Intent Discount",
+    "device": "desktop",
+    "steps": [
+      { "name": "Exit popup shown", "type": "teaser", "views": 6500, "proceeds": 2600 },
+      { "name": "Offer clicked", "type": "engagement", "views": 2600, "proceeds": 1430 },
+      { "name": "Email capture", "type": "email", "views": 1430, "proceeds": 572 },
+      { "name": "Purchase", "type": "conversion", "views": 572, "proceeds": 400 }
+    ]
+  }
+]
