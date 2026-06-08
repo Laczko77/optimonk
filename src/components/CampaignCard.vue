@@ -32,14 +32,17 @@ const accessibleName = computed(
 <template>
   <button
     type="button"
-    class="group w-full cursor-pointer rounded-xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-200 transition hover:shadow-md hover:ring-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+    class="group w-full cursor-pointer rounded-xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 transition hover:shadow-md hover:ring-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 sm:p-5"
     :aria-label="accessibleName"
     data-testid="campaign-card"
     :data-campaign-id="campaign.id"
     @click="emit('select', campaign.id)"
   >
     <div class="flex items-start justify-between gap-3">
-      <h2 class="text-base font-medium text-slate-900" data-testid="campaign-card-name">
+      <h2
+        class="min-w-0 break-words text-base font-medium text-slate-900"
+        data-testid="campaign-card-name"
+      >
         {{ campaign.name }}
       </h2>
       <span
@@ -58,7 +61,7 @@ const accessibleName = computed(
       <div>
         <p class="text-xs uppercase tracking-wide text-slate-400">Overall conversion</p>
         <p
-          class="mt-0.5 text-3xl font-semibold text-slate-900"
+          class="mt-0.5 whitespace-nowrap text-3xl font-semibold tabular-nums text-slate-900"
           data-testid="campaign-card-conversion"
         >
           {{ conversionLabel }}

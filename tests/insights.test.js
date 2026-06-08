@@ -10,13 +10,15 @@ import { describe, it, expect } from 'vitest'
 import { getInsights } from '../src/lib/insights.js'
 import { stepDropoffRate } from '../src/lib/funnel.js'
 import { formatPercent } from '../src/lib/format.js'
-import campaigns from '../src/data/campaigns.json'
+import dataset from '../src/data/campaigns.json'
+
+// Iteration 7: official `{ campaigns: [...] }` dataset (3 campaigns).
+const campaigns = dataset.campaigns
 
 const byId = (id) => campaigns.find((c) => c.id === id)
 const camp001 = byId('camp_001')
 const camp002 = byId('camp_002')
 const camp003 = byId('camp_003')
-const camp004 = byId('camp_004')
 
 // Reduce an insight list to the load-bearing contract triple, in order.
 const shape = (insights) =>
@@ -26,53 +28,42 @@ const shape = (insights) =>
 // Per-campaign truth (independently derived from JSON + the rule operators).
 // ---------------------------------------------------------------------------
 
-describe('getInsights — per-campaign truth (real dataset)', () => {
-  it('camp_001: A(crit,idx1) → B(warn,idx0) → C-strong(positive,idx3); D silent (overall 8.2% dead-zone)', () => {
+describe('getInsights — per-campaign truth (official dataset)', () => {
+  it('camp_001: A(crit,idx1) → B(warn,idx0) → C-strong(positive,idx2); D silent (overall 8.2% dead-zone)', () => {
     const result = getInsights(camp001)
     expect(result).toHaveLength(3)
     expect(shape(result)).toEqual([
       { id: 'capture-step-high-dropoff', severity: 'critical', stepIndex: 1 },
       { id: 'first-step-high-dropoff', severity: 'warning', stepIndex: 0 },
-      { id: 'closing-step-strong', severity: 'positive', stepIndex: 3 },
+      { id: 'closing-step-strong', severity: 'positive', stepIndex: 2 },
     ])
     // overall-conversion rules must NOT fire in the 7%–12% dead zone.
     expect(result.some((i) => i.id.startsWith('overall-conversion'))).toBe(false)
   })
 
-  it('camp_002: B(warn,idx0) → C-weak(warn,idx2); no A, no D; B before C-weak by magnitude', () => {
+  it('camp_002: C-weak(warn,idx1) → overall-strong(positive,null); no A, no B (exit-intent entry)', () => {
     const result = getInsights(camp002)
     expect(result).toHaveLength(2)
     expect(shape(result)).toEqual([
-      { id: 'first-step-high-dropoff', severity: 'warning', stepIndex: 0 },
-      { id: 'closing-step-weak', severity: 'warning', stepIndex: 2 },
+      { id: 'closing-step-weak', severity: 'warning', stepIndex: 1 },
+      { id: 'overall-conversion-strong', severity: 'positive', stepIndex: null },
     ])
+    // Rule A: no email/form step. Rule B: first step type is "exit-intent", not "teaser".
     expect(result.some((i) => i.id === 'capture-step-high-dropoff')).toBe(false)
-    expect(result.some((i) => i.id.startsWith('overall-conversion'))).toBe(false)
+    expect(result.some((i) => i.id === 'first-step-high-dropoff')).toBe(false)
   })
 
-  it('camp_003: B(warn,idx0) → C-strong(positive,idx4) → overall-strong(positive,null); warning before both positives', () => {
+  it('camp_003: A(crit,idx1) → B(warn,idx0) → overall-low(warn,null); C-strong dropped by the cap', () => {
     const result = getInsights(camp003)
     expect(result).toHaveLength(3)
     expect(shape(result)).toEqual([
+      { id: 'capture-step-high-dropoff', severity: 'critical', stepIndex: 1 },
       { id: 'first-step-high-dropoff', severity: 'warning', stepIndex: 0 },
-      { id: 'closing-step-strong', severity: 'positive', stepIndex: 4 },
-      { id: 'overall-conversion-strong', severity: 'positive', stepIndex: null },
+      { id: 'overall-conversion-low', severity: 'warning', stepIndex: null },
     ])
-    // No capture step clears 60% here (rates 25% / 40% / 11%).
-    expect(result.some((i) => i.id === 'capture-step-high-dropoff')).toBe(false)
-  })
-
-  it('camp_004: A(crit,idx2) → B(warn,idx0) → C-weak(warn,idx3); D-low dropped by the cap', () => {
-    const result = getInsights(camp004)
-    expect(result).toHaveLength(3)
-    expect(shape(result)).toEqual([
-      { id: 'capture-step-high-dropoff', severity: 'critical', stepIndex: 2 },
-      { id: 'first-step-high-dropoff', severity: 'warning', stepIndex: 0 },
-      { id: 'closing-step-weak', severity: 'warning', stepIndex: 3 },
-    ])
-    // D-low (overall ≈ 6.2%, < 7%) is a real candidate but is the lowest-magnitude
-    // warning, so the cap of 3 drops it.
-    expect(result.some((i) => i.id === 'overall-conversion-low')).toBe(false)
+    // closing-step-strong (idx2 conv 86.7%) is a real positive candidate but is
+    // the lowest-priority tier, so the cap of 3 drops it.
+    expect(result.some((i) => i.id === 'closing-step-strong')).toBe(false)
   })
 })
 
@@ -81,12 +72,19 @@ describe('getInsights — per-campaign truth (real dataset)', () => {
 // ---------------------------------------------------------------------------
 
 describe('getInsights — Rule A (capture step, ≥ 60% drop)', () => {
-  it('fires on a capture step whose drop-off is EXACTLY 60% (camp_004 email idx2)', () => {
+  it('fires on a capture step whose drop-off is EXACTLY 60% (≥ boundary)', () => {
     // 572/1430 = 0.40 exactly → drop-off exactly 0.60 → ≥ boundary fires.
-    expect(stepDropoffRate(camp004.steps[2])).toBeCloseTo(0.6, 12)
-    const a = getInsights(camp004).find((i) => i.id === 'capture-step-high-dropoff')
+    // (No official campaign sits on the boundary, so this is a synthetic fixture.)
+    const fixture = {
+      steps: [
+        { name: 'Entry', type: 'engagement', views: 1000, proceeds: 900 }, // non-teaser, no B
+        { name: 'Email', type: 'email', views: 1430, proceeds: 572 }, // rate exactly 0.60
+      ],
+    }
+    expect(stepDropoffRate(fixture.steps[1])).toBeCloseTo(0.6, 12)
+    const a = getInsights(fixture).find((i) => i.id === 'capture-step-high-dropoff')
     expect(a).toBeDefined()
-    expect(a.stepIndex).toBe(2)
+    expect(a.stepIndex).toBe(1)
   })
 
   it('does NOT fire just below 60% (59% drop)', () => {
@@ -113,11 +111,11 @@ describe('getInsights — Rule A (capture step, ≥ 60% drop)', () => {
     expect(a.text).toContain('Email B')
   })
 
-  it('uses "email" wording + camp_001 anchor copy (73.0%, 2,350 people, "Email capture")', () => {
+  it('uses "email" wording + camp_001 anchor copy (73.4%, 2,350 people, "Email capture")', () => {
     const a = getInsights(camp001).find((i) => i.id === 'capture-step-high-dropoff')
     expect(a.title).toContain('email')
     expect(a.title).not.toContain('sign-up')
-    expect(a.text).toContain('73.0%')
+    expect(a.text).toContain('73.4%')
     expect(a.text).toContain('2,350 people')
     expect(a.text).toContain('"Email capture"')
   })
@@ -152,10 +150,10 @@ describe('getInsights — Rule A (capture step, ≥ 60% drop)', () => {
 // ---------------------------------------------------------------------------
 
 describe('getInsights — Rule B (first/teaser step)', () => {
-  it("camp_001 first-step text uses formatPercent(dropoffRate) (don't hardcode 59.7%)", () => {
+  it('camp_001 first-step text uses formatPercent(dropoffRate) (68.0%)', () => {
     const b = getInsights(camp001).find((i) => i.id === 'first-step-high-dropoff')
     const expected = formatPercent(stepDropoffRate(camp001.steps[0]))
-    expect(expected).toBe('59.7%') // documents the lib's rounding for this anchor
+    expect(expected).toBe('68.0%') // 1 - 3200/10000 = 0.68 exactly
     expect(b.text).toContain(expected)
     expect(b.stepIndex).toBe(0)
   })
@@ -209,16 +207,16 @@ describe('getInsights — Rule C (closing step)', () => {
     expect(result[0].text).toContain('69.0%')
   })
 
-  it('C-positive anchor copy: camp_001 closing step → "91.1%" + "Coupon redeemed"', () => {
+  it('C-positive anchor copy: camp_001 closing step → "96.5%" + "Success & coupon"', () => {
     const c = getInsights(camp001).find((i) => i.id === 'closing-step-strong')
-    expect(c.text).toContain('91.1%')
-    expect(c.text).toContain('Coupon redeemed')
+    expect(c.text).toContain('96.5%')
+    expect(c.text).toContain('Success & coupon')
   })
 
-  it('C-warning anchor copy: camp_002 closing step → "60.0%" + "Checkout complete"', () => {
+  it('C-warning anchor copy: camp_002 closing step → "52.4%" + "Coupon reveal"', () => {
     const c = getInsights(camp002).find((i) => i.id === 'closing-step-weak')
-    expect(c.text).toContain('60.0%')
-    expect(c.text).toContain('Checkout complete')
+    expect(c.text).toContain('52.4%')
+    expect(c.text).toContain('Coupon reveal')
   })
 })
 
@@ -266,9 +264,14 @@ describe('getInsights — Rule D (overall conversion)', () => {
     ])
   })
 
-  it('D-high anchor copy: camp_003 overall → "14.0%"', () => {
-    const d = getInsights(camp003).find((i) => i.id === 'overall-conversion-strong')
-    expect(d.text).toContain('14.0%')
+  it('D-high anchor copy: camp_002 overall → "14.7%"', () => {
+    const d = getInsights(camp002).find((i) => i.id === 'overall-conversion-strong')
+    expect(d.text).toContain('14.7%')
+  })
+
+  it('D-low anchor copy: camp_003 overall → "2.2%"', () => {
+    const d = getInsights(camp003).find((i) => i.id === 'overall-conversion-low')
+    expect(d.text).toContain('2.2%')
   })
 })
 
@@ -279,30 +282,41 @@ describe('getInsights — Rule D (overall conversion)', () => {
 describe('getInsights — ordering', () => {
   it('severity rank wins over magnitude (critical < warning < positive)', () => {
     const ranks = { critical: 0, warning: 1, positive: 2 }
-    for (const camp of [camp001, camp003, camp004]) {
+    for (const camp of [camp001, camp002, camp003]) {
       const seq = getInsights(camp).map((i) => ranks[i.severity])
       const sorted = [...seq].sort((a, b) => a - b)
       expect(seq).toEqual(sorted)
     }
   })
 
-  it('camp_003 puts a high-magnitude positive AFTER a lower-magnitude warning (severity dominates)', () => {
-    // closing-step-strong magnitude 0.875 > first-step-high-dropoff magnitude 0.60,
-    // yet the warning still comes first because severity outranks magnitude.
-    const result = getInsights(camp003)
-    expect(result[0].id).toBe('first-step-high-dropoff')
+  it('camp_002 puts a high-magnitude positive AFTER a lower-magnitude warning (severity dominates)', () => {
+    // closing-step-weak (warning) is ordered before overall-conversion-strong
+    // (positive) purely because severity outranks magnitude.
+    const result = getInsights(camp002)
+    expect(result[0].id).toBe('closing-step-weak')
     expect(result[0].severity).toBe('warning')
     expect(result[1].severity).toBe('positive')
   })
 
-  it('intra-tier: camp_004 warnings ordered by descending magnitude (B 0.60 before C-weak 0.30)', () => {
-    const result = getInsights(camp004)
+  it('intra-tier: camp_003 warnings ordered by descending magnitude (B 0.85 before overall-low 0.048)', () => {
+    // Both are warnings: first-step drop-off rate 0.85 vs overall-low distance
+    // 0.07 - 0.0217 ≈ 0.048 → B sorts first within the warning tier.
+    const result = getInsights(camp003)
     const warnings = result.filter((i) => i.severity === 'warning').map((i) => i.id)
-    expect(warnings).toEqual(['first-step-high-dropoff', 'closing-step-weak'])
+    expect(warnings).toEqual(['first-step-high-dropoff', 'overall-conversion-low'])
   })
 
-  it('intra-tier: camp_003 positives ordered by magnitude (C-strong 0.875 before overall-strong 0.02)', () => {
-    const result = getInsights(camp003)
+  it('intra-tier: two positives ordered by magnitude (C-strong before overall-strong)', () => {
+    // No official campaign emits two positives at once, so this is synthetic:
+    // non-teaser entry (no B), no capture (no A), closing conv 0.944 (C-strong)
+    // and overall 0.85 (D-high). C-strong magnitude 0.944 > D-high distance 0.73.
+    const twoPositives = {
+      steps: [
+        { name: 'Entry', type: 'engagement', views: 1000, proceeds: 900 },
+        { name: 'Done', type: 'conversion', views: 900, proceeds: 850 },
+      ],
+    }
+    const result = getInsights(twoPositives)
     const positives = result.filter((i) => i.severity === 'positive').map((i) => i.id)
     expect(positives).toEqual(['closing-step-strong', 'overall-conversion-strong'])
   })
@@ -408,7 +422,7 @@ describe('getInsights — empty & edge input', () => {
 
 describe('getInsights — purity', () => {
   it('does not mutate the campaign it is given', () => {
-    const original = byId('camp_004')
+    const original = byId('camp_003')
     const clone = structuredClone(original)
     getInsights(original)
     expect(original).toEqual(clone)

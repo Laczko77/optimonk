@@ -19,11 +19,14 @@ import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import Insights from '../src/components/Insights.vue'
 import { getInsights } from '../src/lib/insights.js'
-import campaigns from '../src/data/campaigns.json'
+import dataset from '../src/data/campaigns.json'
+
+// Iteration 7: official `{ campaigns: [...] }` dataset shape.
+const campaigns = dataset.campaigns
 
 const byId = (id) => campaigns.find((c) => c.id === id)
 const camp001 = byId('camp_001') // 3 insights: crit, warn, positive
-const camp004 = byId('camp_004') // 3 insights: crit, warn, warn
+const camp003 = byId('camp_003') // 3 insights: crit, warn, warn (C-strong capped out)
 
 // A campaign that fires no rule → empty state (closing conv 0.80, overall 8%).
 const healthyCampaign = {
@@ -57,9 +60,9 @@ describe('Insights.vue — panel + dumb-rendering contract', () => {
     expect(renderedSequence(wrapper)).toEqual(expected)
   })
 
-  it('dumb-panel proof: rendered (id,severity) sequence === getInsights(fixture) mapped (camp_004)', () => {
-    const wrapper = mount(Insights, { props: { campaign: camp004 } })
-    const expected = getInsights(camp004).map((i) => ({ id: i.id, severity: i.severity }))
+  it('dumb-panel proof: rendered (id,severity) sequence === getInsights(fixture) mapped (camp_003)', () => {
+    const wrapper = mount(Insights, { props: { campaign: camp003 } })
+    const expected = getInsights(camp003).map((i) => ({ id: i.id, severity: i.severity }))
     expect(renderedSequence(wrapper)).toEqual(expected)
   })
 

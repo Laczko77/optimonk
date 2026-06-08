@@ -7,7 +7,11 @@ import {
   worstStep,
   worstStepByAbsolute,
 } from '../src/lib/funnel.js'
-import campaigns from '../src/data/campaigns.json'
+import dataset from '../src/data/campaigns.json'
+
+// Iteration 7: campaigns.json is now the official `{ campaigns: [...] }` shape;
+// the array lives under `.campaigns`. The pure math here is unchanged.
+const campaigns = dataset.campaigns
 
 // Helper: pull a campaign from the real dataset by id.
 const byId = (id) => campaigns.find((c) => c.id === id)
@@ -87,8 +91,8 @@ describe('stepDropoffAbs', () => {
     expect(stepDropoffAbs(camp001.steps[1])).toBe(2350)
   })
 
-  it('matches camp_001 teaser-step absolute drop-off (4780)', () => {
-    expect(stepDropoffAbs(camp001.steps[0])).toBe(4780)
+  it('matches camp_001 teaser-step absolute drop-off (6800)', () => {
+    expect(stepDropoffAbs(camp001.steps[0])).toBe(6800)
   })
 })
 
@@ -171,7 +175,7 @@ describe('worstStep', () => {
     expect(w.conversion).toBeCloseTo(0.27, 2)
   })
 
-  it('proves rate-worst differs from absolute-worst: absolute-worst is the Teaser (index 0, 4780)', () => {
+  it('proves rate-worst differs from absolute-worst: absolute-worst is the Teaser (index 0, 6800)', () => {
     // Independently find the step that lost the most PEOPLE.
     let absWorstIndex = 0
     let absWorst = stepDropoffAbs(camp001.steps[0])
@@ -183,7 +187,7 @@ describe('worstStep', () => {
       }
     })
     expect(absWorstIndex).toBe(0)
-    expect(absWorst).toBe(4780)
+    expect(absWorst).toBe(6800)
 
     // worstStep chooses by RATE, so it must NOT return the absolute-worst step here.
     const w = worstStep(camp001)
@@ -259,14 +263,14 @@ describe('worstStepByAbsolute', () => {
     expect(Object.keys(a).sort()).toEqual(Object.keys(worstStep(camp001)).sort())
   })
 
-  it('picks the step that loses the MOST PEOPLE: camp_001 -> Teaser (index 0, 4,780)', () => {
+  it('picks the step that loses the MOST PEOPLE: camp_001 -> Teaser (index 0, 6,800)', () => {
     const a = worstStepByAbsolute(camp001)
     expect(a.index).toBe(0)
     expect(a.step).toBe(camp001.steps[0])
-    expect(a.dropoffAbs).toBe(4780)
+    expect(a.dropoffAbs).toBe(6800)
   })
 
-  it('absolute-worst (idx 0) DIFFERS from rate-worst (idx 1) on camp_001 — the 4.4 divergence', () => {
+  it('absolute-worst (idx 0) DIFFERS from rate-worst (idx 1) on camp_001', () => {
     // This is the load-bearing case: the headcount-worst step is NOT the
     // rate-worst step, so the two helpers must return different indices.
     expect(worstStepByAbsolute(camp001).index).toBe(0)

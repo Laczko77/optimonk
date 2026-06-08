@@ -8,6 +8,14 @@ import tailwindcss from '@tailwindcss/vite'
 // are installed for this), so tests/funnel.test.js keeps running under node.
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
+  // Dev-server proxy: forward the frontend's /api requests to the Express
+  // backend (server/index.js) on port 3001, so the app can fetch /api/campaigns
+  // same-origin without CORS during development.
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3001',
+    },
+  },
   test: {
     environment: 'node',
     include: ['tests/**/*.{test,spec}.js'],

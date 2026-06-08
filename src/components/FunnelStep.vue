@@ -53,11 +53,14 @@ const resultLine = computed(() => {
         : ''
     "
   >
-    <div class="flex items-baseline gap-3">
-      <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
         Step {{ index + 1 }}
       </span>
-      <h3 class="text-base font-medium text-slate-900" data-testid="funnel-step-name">
+      <h3
+        class="min-w-0 break-words text-base font-medium text-slate-900"
+        data-testid="funnel-step-name"
+      >
         {{ step.name }}
       </h3>
       <span

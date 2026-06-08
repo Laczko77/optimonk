@@ -75,7 +75,7 @@ const calloutNote = computed(() => {
 
 <template>
   <section
-    class="mx-auto w-full max-w-3xl px-4 py-10"
+    class="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6"
     data-testid="detail-view"
     :data-campaign-id="campaign.id"
   >
@@ -91,7 +91,9 @@ const calloutNote = computed(() => {
 
     <header class="mt-6">
       <div class="flex items-start justify-between gap-3">
-        <h1 class="text-2xl font-semibold text-slate-900">{{ campaign.name }}</h1>
+        <h1 class="min-w-0 break-words text-2xl font-semibold text-slate-900">
+          {{ campaign.name }}
+        </h1>
         <span
           class="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600"
           data-testid="detail-device"

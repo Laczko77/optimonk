@@ -9,7 +9,10 @@ import { mount } from '@vue/test-utils'
 import CampaignCard from '../src/components/CampaignCard.vue'
 import { overallConversion } from '../src/lib/funnel.js'
 import { formatPercent } from '../src/lib/format.js'
-import campaigns from '../src/data/campaigns.json'
+import dataset from '../src/data/campaigns.json'
+
+// Iteration 7: official `{ campaigns: [...] }` dataset shape.
+const campaigns = dataset.campaigns
 
 const byId = (id) => campaigns.find((c) => c.id === id)
 const text = (wrapper, testid) =>
@@ -31,21 +34,22 @@ describe('CampaignCard — content (A)', () => {
   })
 
   it('renders the device capitalized', () => {
-    // desktop -> Desktop, mobile -> Mobile, tablet -> Tablet
+    // Official dataset: camp_001/002 are desktop, camp_003 is mobile.
+    // desktop -> Desktop, mobile -> Mobile (capitalization of the raw value).
     expect(
       text(mount(CampaignCard, { props: { campaign: byId('camp_001') } }), 'campaign-card-device'),
     ).toBe('Desktop')
     expect(
       text(mount(CampaignCard, { props: { campaign: byId('camp_002') } }), 'campaign-card-device'),
-    ).toBe('Mobile')
+    ).toBe('Desktop')
     expect(
       text(mount(CampaignCard, { props: { campaign: byId('camp_003') } }), 'campaign-card-device'),
-    ).toBe('Tablet')
+    ).toBe('Mobile')
   })
 
-  it('renders the plural step count for a 4-step campaign', () => {
+  it('renders the plural step count for a 3-step campaign', () => {
     const wrapper = mount(CampaignCard, { props: { campaign: byId('camp_001') } })
-    expect(text(wrapper, 'campaign-card-steps')).toBe('4 steps')
+    expect(text(wrapper, 'campaign-card-steps')).toBe('3 steps')
   })
 
   it('renders the singular "1 step" label for a single-step campaign', () => {
@@ -68,9 +72,14 @@ describe('CampaignCard — conversion is lib-tied (B)', () => {
     }
   })
 
-  it('B3: camp_004 rounds to "6.2%" (400/6500 = 6.15.. -> one decimal)', () => {
-    const wrapper = mount(CampaignCard, { props: { campaign: byId('camp_004') } })
-    expect(text(wrapper, 'campaign-card-conversion')).toBe('6.2%')
+  it('B3: camp_002 rounds to "14.7%" (1100/7500 = 14.66.. -> one decimal)', () => {
+    const wrapper = mount(CampaignCard, { props: { campaign: byId('camp_002') } })
+    expect(text(wrapper, 'campaign-card-conversion')).toBe('14.7%')
+  })
+
+  it('B4: camp_003 rounds to "2.2%" (260/12000 = 2.16.. -> one decimal)', () => {
+    const wrapper = mount(CampaignCard, { props: { campaign: byId('camp_003') } })
+    expect(text(wrapper, 'campaign-card-conversion')).toBe('2.2%')
   })
 })
 

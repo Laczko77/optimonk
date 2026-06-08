@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
 //
-// Component tests for FunnelDetail + FunnelStep (Iteration 3). Opts into jsdom
-// per-file so the global Vitest env stays `node` (keeps tests/funnel.test.js
-// pure). FunnelDetail is presentational and takes a `campaign` prop, so these
-// mount it directly with fixtures — no composable mocking needed.
+// Component tests for FunnelDetail + FunnelStep (Iteration 3, re-anchored for the
+// Iteration 7 official dataset). Opts into jsdom per-file so the global Vitest env
+// stays `node` (keeps tests/funnel.test.js pure). FunnelDetail is presentational
+// and takes a `campaign` prop, so these mount it directly with fixtures — no
+// composable mocking needed.
 //
 // Result lines and counts are tied to the lib (stepConversion/stepDropoffRate/
-// stepDropoffAbs + formatPercent/formatCount) rather than hardcoded literals,
-// so toFixed-ambiguous values (step 0's 40.3%/59.7%) and host-locale count
-// formatting can never silently drift between component and test.
+// stepDropoffAbs + formatPercent/formatCount) rather than hardcoded literals, so
+// rounding and host-locale count formatting can never silently drift between
+// component and test.
+//
+// Official camp_001 is now 3 steps: Teaser – 10% off (10000→3200), Email capture
+// (3200→850), Success & coupon (850→820). Rate-worst is the email step (idx 1);
+// absolute-worst is the teaser (idx 0) — they DIFFER, so the secondary note shows.
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import FunnelDetail from '../src/components/FunnelDetail.vue'
@@ -20,8 +25,9 @@ import {
   worstStepByAbsolute,
 } from '../src/lib/funnel.js'
 import { formatPercent, formatCount } from '../src/lib/format.js'
-import campaigns from '../src/data/campaigns.json'
+import dataset from '../src/data/campaigns.json'
 
+const campaigns = dataset.campaigns
 const byId = (id) => campaigns.find((c) => c.id === id)
 const camp001 = byId('camp_001')
 // camp_002 is the "agree" fixture: rate-worst === absolute-worst (idx 0), so the
@@ -55,7 +61,7 @@ const expectedViews = (step) => `${formatCount(step.views)} people`
 // Iteration 4 callout copy, mirrored from FunnelDetail's templates but sourced
 // entirely from the lib (worstStep / worstStepByAbsolute + formatPercent /
 // formatCount) so the component can never silently diverge from the math.
-// Uses the exact em-dash "—" (U+2014) the component renders.
+// Uses the exact em-dash "—" (U+2014) the component renders as the separator.
 const peopleNoun = (count) => (count === 1 ? 'person' : 'people')
 
 function expectedPrimary(campaign) {
@@ -152,21 +158,20 @@ const singularLast = {
 // AC1 — steps render in order with correct indices and view counts
 // ==========================================================================
 describe('FunnelDetail — AC1: steps render in order (camp_001)', () => {
-  it('renders one funnel-step per step, in order, indexed 0..3', () => {
+  it('renders one funnel-step per step, in order, indexed 0..2', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     const els = steps(wrapper)
-    expect(els).toHaveLength(4)
+    expect(els).toHaveLength(3)
     els.forEach((el, i) => {
       expect(el.attributes('data-step-index')).toBe(String(i))
     })
   })
 
-  it('renders the view counts "8,000" / "3,220" / "870" / "720"', () => {
+  it('renders the view counts "10,000" / "3,200" / "850"', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
-    expect(stepPart(wrapper, 0, 'funnel-step-views').text()).toBe('8,000 people')
-    expect(stepPart(wrapper, 1, 'funnel-step-views').text()).toBe('3,220 people')
-    expect(stepPart(wrapper, 2, 'funnel-step-views').text()).toBe('870 people')
-    expect(stepPart(wrapper, 3, 'funnel-step-views').text()).toBe('720 people')
+    expect(stepPart(wrapper, 0, 'funnel-step-views').text()).toBe('10,000 people')
+    expect(stepPart(wrapper, 1, 'funnel-step-views').text()).toBe('3,200 people')
+    expect(stepPart(wrapper, 2, 'funnel-step-views').text()).toBe('850 people')
   })
 
   it('view counts are lib-tied to formatCount(step.views)', () => {
@@ -189,22 +194,22 @@ describe('FunnelDetail — AC1: steps render in order (camp_001)', () => {
 describe('FunnelDetail — AC2: non-last result lines (camp_001)', () => {
   it('each non-last result === the lib-built expected string', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
-    // steps 0,1,2 are non-last in a 4-step campaign
-    for (const i of [0, 1, 2]) {
+    // steps 0,1 are non-last in a 3-step campaign
+    for (const i of [0, 1]) {
       expect(stepPart(wrapper, i, 'funnel-step-result').text()).toBe(
         expectedResult(camp001.steps[i], false),
       )
     }
   })
 
-  it('the email step (idx 1) anchors at 27.0% continue / 73.0% drop off / 2,350 people lost', () => {
+  it('the email step (idx 1) anchors at 26.6% continue / 73.4% drop off / 2,350 people lost', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     const result = stepPart(wrapper, 1, 'funnel-step-result').text()
-    expect(result).toContain('27.0%')
-    expect(result).toContain('73.0%')
+    expect(result).toContain('26.6%')
+    expect(result).toContain('73.4%')
     expect(result).toContain('2,350 people lost')
     // exact full line, lib-tied (proves the middle dot separator " · " too)
-    expect(result).toBe('27.0% continue · 73.0% drop off (2,350 people lost)')
+    expect(result).toBe('26.6% continue · 73.4% drop off (2,350 people lost)')
   })
 
   it('uses the middle-dot separator "·" with surrounding spaces', () => {
@@ -217,19 +222,19 @@ describe('FunnelDetail — AC2: non-last result lines (camp_001)', () => {
 // AC3 — last vs non-last wording
 // ==========================================================================
 describe('FunnelDetail — AC3: last vs non-last wording (camp_001)', () => {
-  it('the last step (idx 3) uses completion wording, not continue/drop-off', () => {
+  it('the last step (idx 2, Success & coupon) uses completion wording, not continue/drop-off', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
-    const result = stepPart(wrapper, 3, 'funnel-step-result').text()
+    const result = stepPart(wrapper, 2, 'funnel-step-result').text()
     expect(result).toContain('complete')
-    expect(result).toContain("64 people didn't complete")
+    expect(result).toContain("30 people didn't complete")
     expect(result).not.toContain('continue')
     expect(result).not.toContain('drop off')
-    expect(result).toBe(expectedResult(camp001.steps[3], true))
+    expect(result).toBe(expectedResult(camp001.steps[2], true))
   })
 
   it('non-last steps use continue/drop-off wording, never "complete"', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
-    for (const i of [0, 1, 2]) {
+    for (const i of [0, 1]) {
       const result = stepPart(wrapper, i, 'funnel-step-result').text()
       expect(result).toContain('continue')
       expect(result).toContain('drop off')
@@ -248,11 +253,11 @@ describe('FunnelDetail — AC4: bar widths (camp_001, large steps)', () => {
     expect(bar.element.style.width).toBe('100%')
   })
 
-  it('step idx 1 bar is the raw 3220/8000 proportion (40.25%)', () => {
+  it('step idx 1 bar is the raw 3200/10000 proportion (32%)', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     const bar = stepPart(wrapper, 1, 'funnel-step-bar')
     // identical float expression to the component so rounding can't diverge
-    expect(bar.element.style.width).toBe(`${(3220 / 8000) * 100}%`)
+    expect(bar.element.style.width).toBe(`${(3200 / 10000) * 100}%`)
   })
 })
 
@@ -363,7 +368,7 @@ describe('FunnelDetail — Iter4: worst-step badge marks exactly one step (camp_
     // present on the worst step
     expect(stepEl(wrapper, 1).find('[data-testid="worst-step-badge"]').exists()).toBe(true)
     // absent on every other step
-    for (const i of [0, 2, 3]) {
+    for (const i of [0, 2]) {
       expect(stepEl(wrapper, i).find('[data-testid="worst-step-badge"]').exists()).toBe(false)
     }
     // and exactly one badge in the whole view
@@ -382,7 +387,7 @@ describe('FunnelDetail — Iter4: worst-step callout (camp_001, note present)', 
     expect(callout(wrapper).attributes('role')).toBe('status')
   })
 
-  it('primary copy contains the lib-built worst-step sentence (Step 2 — Email capture, 73.0%, 2,350, 27.0%)', () => {
+  it('primary copy contains the lib-built worst-step sentence (Step 2 — Email capture, 73.4%, 2,350, 26.6%)', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     const text = callout(wrapper).text()
     // toContain (not ===): the container also holds the decorative aria-hidden ⚠
@@ -390,19 +395,20 @@ describe('FunnelDetail — Iter4: worst-step callout (camp_001, note present)', 
     expect(text).toContain(expectedPrimary(camp001))
     // anchor the load-bearing numbers explicitly
     expect(text).toContain('Step 2 — Email capture')
-    expect(text).toContain('73.0%')
+    expect(text).toContain('73.4%')
     expect(text).toContain('2,350')
-    expect(text).toContain('27.0%')
+    expect(text).toContain('26.6%')
   })
 
-  it('secondary note is present and equals the lib-built abs-worst sentence (Step 1 — Teaser shown, 4,780)', () => {
+  it('secondary note is present and equals the lib-built abs-worst sentence (Step 1 — Teaser, 6,800)', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     const note = calloutNote(wrapper)
     expect(note.exists()).toBe(true)
     // the note element holds clean copy (no glyph) -> strict equality is correct
     expect(note.text()).toBe(expectedSecondary(camp001))
-    expect(note.text()).toContain('Step 1 — Teaser shown')
-    expect(note.text()).toContain('4,780')
+    // name sourced from data (its en-dash differs from the em-dash separator)
+    expect(note.text()).toContain(`Step 1 — ${camp001.steps[0].name}`)
+    expect(note.text()).toContain('6,800')
   })
 })
 
@@ -481,24 +487,21 @@ describe('FunnelDetail — Iter4: edge fixtures', () => {
 // steps and the existing bar-width math still holds with the highlight active.
 // ==========================================================================
 describe('FunnelDetail — Iter4 regression: Iteration-3 lines & bars intact (camp_001)', () => {
-  it('non-worst steps (idx 0, 2, 3) still show their lib-tied Iteration-3 result lines', () => {
+  it('non-worst steps (idx 0, 2) still show their lib-tied Iteration-3 result lines', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     expect(stepPart(wrapper, 0, 'funnel-step-result').text()).toBe(
       expectedResult(camp001.steps[0], false),
     )
     expect(stepPart(wrapper, 2, 'funnel-step-result').text()).toBe(
-      expectedResult(camp001.steps[2], false),
-    )
-    expect(stepPart(wrapper, 3, 'funnel-step-result').text()).toBe(
-      expectedResult(camp001.steps[3], true),
+      expectedResult(camp001.steps[2], true),
     )
   })
 
-  it('bar widths are unchanged by the highlight (entry 100%, idx 1 raw 3220/8000)', () => {
+  it('bar widths are unchanged by the highlight (entry 100%, idx 1 raw 3200/10000)', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     expect(stepPart(wrapper, 0, 'funnel-step-bar').element.style.width).toBe('100%')
     expect(stepPart(wrapper, 1, 'funnel-step-bar').element.style.width).toBe(
-      `${(3220 / 8000) * 100}%`,
+      `${(3200 / 10000) * 100}%`,
     )
   })
 })
