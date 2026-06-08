@@ -17,3 +17,15 @@ export function formatPercent(fraction) {
   if (!Number.isFinite(fraction)) return '0.0%'
   return `${(fraction * 100).toFixed(1)}%`
 }
+
+/**
+ * Format a whole-people count with thousands separators.
+ * e.g. 4780 -> "4,780". Non-finite input is guarded to "0".
+ *
+ * @param {number} count
+ * @returns {string}
+ */
+export function formatCount(count) {
+  if (!Number.isFinite(count)) return '0'
+  return new Intl.NumberFormat('en-US').format(count)
+}
