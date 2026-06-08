@@ -16,12 +16,17 @@ import {
   stepConversion,
   stepDropoffRate,
   stepDropoffAbs,
+  worstStep,
+  worstStepByAbsolute,
 } from '../src/lib/funnel.js'
 import { formatPercent, formatCount } from '../src/lib/format.js'
 import campaigns from '../src/data/campaigns.json'
 
 const byId = (id) => campaigns.find((c) => c.id === id)
 const camp001 = byId('camp_001')
+// camp_002 is the "agree" fixture: rate-worst === absolute-worst (idx 0), so the
+// detail callout shows NO secondary note. Foil to camp_001 where they differ.
+const camp002 = byId('camp_002')
 
 // ---- helpers -------------------------------------------------------------
 
@@ -46,6 +51,36 @@ function expectedResult(step, isLast) {
 }
 
 const expectedViews = (step) => `${formatCount(step.views)} people`
+
+// Iteration 4 callout copy, mirrored from FunnelDetail's templates but sourced
+// entirely from the lib (worstStep / worstStepByAbsolute + formatPercent /
+// formatCount) so the component can never silently diverge from the math.
+// Uses the exact em-dash "—" (U+2014) the component renders.
+const peopleNoun = (count) => (count === 1 ? 'person' : 'people')
+
+function expectedPrimary(campaign) {
+  const w = worstStep(campaign)
+  return (
+    `Biggest drop-off is at Step ${w.index + 1} — ${w.step.name}: ` +
+    `${formatPercent(w.dropoffRate)} of people leave here ` +
+    `(${formatCount(w.dropoffAbs)} ${peopleNoun(w.dropoffAbs)}), ` +
+    `and only ${formatPercent(w.conversion)} continue.`
+  )
+}
+
+function expectedSecondary(campaign) {
+  const a = worstStepByAbsolute(campaign)
+  const w = worstStep(campaign)
+  return (
+    `Heads up: Step ${a.index + 1} — ${a.step.name} loses the most people overall ` +
+    `(${formatCount(a.dropoffAbs)}), but Step ${w.index + 1} loses the largest share.`
+  )
+}
+
+const callout = (wrapper) => wrapper.find('[data-testid="worst-step-callout"]')
+const calloutNote = (wrapper) =>
+  wrapper.find('[data-testid="worst-step-callout-note"]')
+const worstFlags = (wrapper) => wrapper.findAll('[data-is-worst="true"]')
 
 // ---- test-only fixtures (not in shipped campaigns.json) ------------------
 
@@ -91,6 +126,15 @@ const singularNonLast = {
     { name: 'Lose one', type: 'teaser', views: 10, proceeds: 9 },
     { name: 'End', type: 'conversion', views: 9, proceeds: 5 },
   ],
+}
+
+// Empty funnel — no steps at all. worstStep -> null, so highlightActive is
+// false: no callout, no worst flag, and (Iteration 3) no steps render either.
+const emptySteps = {
+  id: 'camp_empty',
+  name: 'No Steps',
+  device: 'mobile',
+  steps: [],
 }
 
 // Last step whose absolute drop-off is exactly 1 (views 5 - proceeds 4).
@@ -301,13 +345,160 @@ describe('FunnelDetail — AC7: back control', () => {
 })
 
 // ==========================================================================
-// Scope boundary — Iteration 3 ships uniform styling; no worst-step highlight
+// Iteration 4 — worst-step highlight: the badge marks exactly one step
 // ==========================================================================
-describe('FunnelDetail — scope boundary (no Iteration 4 highlight leaks in)', () => {
-  it('the Iteration 4 callout slot is reserved but empty, and no worst-step badge is rendered', () => {
+describe('FunnelDetail — Iter4: worst-step badge marks exactly one step (camp_001)', () => {
+  it('exactly one element carries data-is-worst="true", at the rate-worst index (1)', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
+    const flagged = worstFlags(wrapper)
+    expect(flagged).toHaveLength(1)
+    expect(flagged[0].attributes('data-step-index')).toBe(
+      String(worstStep(camp001).index),
+    )
+    expect(flagged[0].attributes('data-step-index')).toBe('1')
+  })
+
+  it('the worst-step badge lives inside the worst step only (idx 1), absent on the others', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
+    // present on the worst step
+    expect(stepEl(wrapper, 1).find('[data-testid="worst-step-badge"]').exists()).toBe(true)
+    // absent on every other step
+    for (const i of [0, 2, 3]) {
+      expect(stepEl(wrapper, i).find('[data-testid="worst-step-badge"]').exists()).toBe(false)
+    }
+    // and exactly one badge in the whole view
+    expect(wrapper.findAll('[data-testid="worst-step-badge"]')).toHaveLength(1)
+  })
+})
+
+// ==========================================================================
+// Iteration 4 — callout copy (primary + secondary note), lib-tied
+// ==========================================================================
+describe('FunnelDetail — Iter4: worst-step callout (camp_001, note present)', () => {
+  it('renders the callout inside callout-slot, with role="status"', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
+    const slot = wrapper.get('[data-testid="callout-slot"]')
+    expect(slot.find('[data-testid="worst-step-callout"]').exists()).toBe(true)
+    expect(callout(wrapper).attributes('role')).toBe('status')
+  })
+
+  it('primary copy contains the lib-built worst-step sentence (Step 2 — Email capture, 73.0%, 2,350, 27.0%)', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
+    const text = callout(wrapper).text()
+    // toContain (not ===): the container also holds the decorative aria-hidden ⚠
+    // glyph and the sibling note <p>, neither of which belong to the primary copy.
+    expect(text).toContain(expectedPrimary(camp001))
+    // anchor the load-bearing numbers explicitly
+    expect(text).toContain('Step 2 — Email capture')
+    expect(text).toContain('73.0%')
+    expect(text).toContain('2,350')
+    expect(text).toContain('27.0%')
+  })
+
+  it('secondary note is present and equals the lib-built abs-worst sentence (Step 1 — Teaser shown, 4,780)', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
+    const note = calloutNote(wrapper)
+    expect(note.exists()).toBe(true)
+    // the note element holds clean copy (no glyph) -> strict equality is correct
+    expect(note.text()).toBe(expectedSecondary(camp001))
+    expect(note.text()).toContain('Step 1 — Teaser shown')
+    expect(note.text()).toContain('4,780')
+  })
+})
+
+describe('FunnelDetail — Iter4: agree fixture (camp_002, note absent)', () => {
+  it('renders the callout but NO secondary note (rate-worst === absolute-worst)', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: camp002 } })
+    expect(callout(wrapper).exists()).toBe(true)
+    expect(callout(wrapper).text()).toContain(expectedPrimary(camp002))
+    // note absent because worstStep.index === worstStepByAbsolute.index
+    expect(calloutNote(wrapper).exists()).toBe(false)
+  })
+
+  it('the badge still marks exactly one step, at the (shared) worst index 0', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: camp002 } })
+    const flagged = worstFlags(wrapper)
+    expect(flagged).toHaveLength(1)
+    expect(flagged[0].attributes('data-step-index')).toBe(String(worstStep(camp002).index))
+    expect(flagged[0].attributes('data-step-index')).toBe('0')
+    expect(wrapper.findAll('[data-testid="worst-step-badge"]')).toHaveLength(1)
+  })
+})
+
+// ==========================================================================
+// Iteration 4 — suppression: single-step funnel gets no highlight at all.
+// This is where the formerly-reserved (now active) callout-slot must be EMPTY.
+// ==========================================================================
+describe('FunnelDetail — Iter4: highlight suppressed for single-step funnel', () => {
+  it('no callout, no note, no worst flag, no badge; callout-slot is empty', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: singleStep } })
+    // callout-slot persists as a wrapper but renders nothing inside
     expect(wrapper.get('[data-testid="callout-slot"]').text()).toBe('')
-    expect(wrapper.find('[data-testid="worst-step"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="worst-step-callout"]').exists()).toBe(false)
+    expect(callout(wrapper).exists()).toBe(false)
+    expect(calloutNote(wrapper).exists()).toBe(false)
+    expect(worstFlags(wrapper)).toHaveLength(0)
+    expect(wrapper.find('[data-testid="worst-step-badge"]').exists()).toBe(false)
+  })
+
+  it('the plain Iteration-3 view still renders the step (suppression is additive-only)', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: singleStep } })
+    expect(steps(wrapper)).toHaveLength(1)
+    expect(stepPart(wrapper, 0, 'funnel-step-result').text()).toBe(
+      expectedResult(singleStep.steps[0], true),
+    )
+  })
+})
+
+// ==========================================================================
+// Iteration 4 — edge fixtures
+// ==========================================================================
+describe('FunnelDetail — Iter4: edge fixtures', () => {
+  it('2-step all-zero-views funnel renders the callout with no NaN/Infinity and no throw', () => {
+    // highlightActive = steps.length > 1 && worstStep !== null -> true here.
+    const wrapper = mount(FunnelDetail, { props: { campaign: allZeroViews } })
+    expect(callout(wrapper).exists()).toBe(true)
+    const text = wrapper.get('[data-testid="detail-view"]').text()
+    expect(text).not.toContain('NaN')
+    expect(text).not.toContain('Infinity')
+    // both steps drop 0 people at rate 0 -> worst is idx 0, abs-worst also idx 0
+    expect(worstFlags(wrapper)).toHaveLength(1)
+    expect(worstFlags(wrapper)[0].attributes('data-step-index')).toBe('0')
+    expect(calloutNote(wrapper).exists()).toBe(false)
+  })
+
+  it('empty-steps funnel renders no callout and no worst flag (worstStep null)', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: emptySteps } })
+    expect(callout(wrapper).exists()).toBe(false)
+    expect(calloutNote(wrapper).exists()).toBe(false)
+    expect(worstFlags(wrapper)).toHaveLength(0)
+    expect(wrapper.get('[data-testid="callout-slot"]').text()).toBe('')
+    expect(steps(wrapper)).toHaveLength(0)
+  })
+})
+
+// ==========================================================================
+// Iteration 4 — regression: Iteration-3 behaviour is unchanged on non-worst
+// steps and the existing bar-width math still holds with the highlight active.
+// ==========================================================================
+describe('FunnelDetail — Iter4 regression: Iteration-3 lines & bars intact (camp_001)', () => {
+  it('non-worst steps (idx 0, 2, 3) still show their lib-tied Iteration-3 result lines', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
+    expect(stepPart(wrapper, 0, 'funnel-step-result').text()).toBe(
+      expectedResult(camp001.steps[0], false),
+    )
+    expect(stepPart(wrapper, 2, 'funnel-step-result').text()).toBe(
+      expectedResult(camp001.steps[2], false),
+    )
+    expect(stepPart(wrapper, 3, 'funnel-step-result').text()).toBe(
+      expectedResult(camp001.steps[3], true),
+    )
+  })
+
+  it('bar widths are unchanged by the highlight (entry 100%, idx 1 raw 3220/8000)', () => {
+    const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
+    expect(stepPart(wrapper, 0, 'funnel-step-bar').element.style.width).toBe('100%')
+    expect(stepPart(wrapper, 1, 'funnel-step-bar').element.style.width).toBe(
+      `${(3220 / 8000) * 100}%`,
+    )
   })
 })

@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
-import { overallConversion } from '../lib/funnel.js'
-import { formatPercent } from '../lib/format.js'
+import { overallConversion, worstStep, worstStepByAbsolute } from '../lib/funnel.js'
+import { formatPercent, formatCount } from '../lib/format.js'
 import FunnelStep from './FunnelStep.vue'
 
 const props = defineProps({
@@ -33,6 +33,43 @@ const deviceLabel = computed(() => {
 const barDenominator = computed(() =>
   steps.value.reduce((max, step) => Math.max(max, step.views), 0),
 )
+
+// --- Iteration 4: worst-step highlight (additive layer) ---
+// Suppressed for single-step / empty funnels: a one-step funnel has no internal
+// drop-off to diagnose, so the highlight is misleading noise.
+const worst = computed(() => worstStep(props.campaign))
+const worstAbs = computed(() => worstStepByAbsolute(props.campaign))
+const highlightActive = computed(() => steps.value.length > 1 && worst.value !== null)
+
+// Singular guard so "1 person" reads naturally (matches Iteration 3).
+function peopleNoun(count) {
+  return count === 1 ? 'person' : 'people'
+}
+
+const calloutPrimary = computed(() => {
+  if (!highlightActive.value) return ''
+  const w = worst.value
+  return (
+    `Biggest drop-off is at Step ${w.index + 1} — ${w.step.name}: ` +
+    `${formatPercent(w.dropoffRate)} of people leave here ` +
+    `(${formatCount(w.dropoffAbs)} ${peopleNoun(w.dropoffAbs)}), ` +
+    `and only ${formatPercent(w.conversion)} continue.`
+  )
+})
+
+// Secondary note only when the rate-worst and absolute-worst steps differ.
+const showNote = computed(
+  () => highlightActive.value && worst.value.index !== worstAbs.value.index,
+)
+const calloutNote = computed(() => {
+  if (!showNote.value) return ''
+  const a = worstAbs.value
+  const w = worst.value
+  return (
+    `Heads up: Step ${a.index + 1} — ${a.step.name} loses the most people overall ` +
+    `(${formatCount(a.dropoffAbs)}), but Step ${w.index + 1} loses the largest share.`
+  )
+})
 </script>
 
 <template>
@@ -67,11 +104,29 @@ const barDenominator = computed(() =>
     </header>
 
     <!--
-      Reserved slot for Iteration 4's plain-language worst-step callout.
-      Intentionally empty in Iteration 3 so the highlight can be layered on
-      top without restructuring this view.
+      Iteration 4 worst-step callout lives in this reserved slot, directly under
+      the header. Rendered only when the highlight is active (multi-step funnel
+      with a worst step); suppressed entirely otherwise.
     -->
-    <div data-testid="callout-slot" />
+    <div data-testid="callout-slot">
+      <div
+        v-if="highlightActive"
+        class="mt-6 rounded-lg border-l-4 border-rose-500 bg-rose-50 p-4"
+        data-testid="worst-step-callout"
+        role="status"
+      >
+        <p class="text-sm font-medium text-rose-900">
+          <span aria-hidden="true">⚠</span> {{ calloutPrimary }}
+        </p>
+        <p
+          v-if="showNote"
+          class="mt-2 text-sm text-rose-700"
+          data-testid="worst-step-callout-note"
+        >
+          {{ calloutNote }}
+        </p>
+      </div>
+    </div>
 
     <div class="mt-6 flex flex-col gap-6">
       <FunnelStep
@@ -81,6 +136,7 @@ const barDenominator = computed(() =>
         :index="index"
         :is-last="index === steps.length - 1"
         :bar-denominator="barDenominator"
+        :is-worst="highlightActive && index === worst.index"
       />
     </div>
   </section>

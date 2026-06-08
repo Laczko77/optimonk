@@ -8,6 +8,10 @@ const props = defineProps({
   index: { type: Number, required: true },
   isLast: { type: Boolean, required: true },
   barDenominator: { type: Number, required: true },
+  // Iteration 4: when true, this step is the worst (highest drop-off rate) and
+  // gets the accessible alert treatment (tinted block, left accent, badge,
+  // alert-tone bar). Colour is never the only signal — the badge always shows.
+  isWorst: { type: Boolean, default: false },
 })
 
 // All math comes from funnel.js; this component never recomputes a rate inline.
@@ -39,7 +43,16 @@ const resultLine = computed(() => {
 </script>
 
 <template>
-  <div data-testid="funnel-step" :data-step-index="index">
+  <div
+    data-testid="funnel-step"
+    :data-step-index="index"
+    :data-is-worst="isWorst ? 'true' : null"
+    :class="
+      isWorst
+        ? 'rounded-lg border-l-4 border-rose-500 bg-rose-50 p-4'
+        : ''
+    "
+  >
     <div class="flex items-baseline gap-3">
       <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
         Step {{ index + 1 }}
@@ -48,18 +61,26 @@ const resultLine = computed(() => {
         {{ step.name }}
       </h3>
       <span
-        class="ml-auto shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600"
+        class="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600"
+        :class="isWorst ? '' : 'ml-auto'"
         data-testid="funnel-step-type"
       >
         {{ step.type }}
+      </span>
+      <span
+        v-if="isWorst"
+        class="ml-auto shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-xs font-semibold text-white"
+        data-testid="worst-step-badge"
+      >
+        <span aria-hidden="true">⚠</span> Biggest drop-off
       </span>
     </div>
 
     <div class="mt-2 flex items-center gap-3">
       <div class="h-4 w-full overflow-hidden rounded-full bg-slate-100">
         <div
-          class="h-full rounded-full bg-indigo-500"
-          :class="{ 'min-w-[0.5rem]': hasBar }"
+          class="h-full rounded-full"
+          :class="[isWorst ? 'bg-rose-500' : 'bg-indigo-500', { 'min-w-[0.5rem]': hasBar }]"
           :style="barStyle"
           data-testid="funnel-step-bar"
         />

@@ -5,12 +5,16 @@ import {
   stepDropoffAbs,
   overallConversion,
   worstStep,
+  worstStepByAbsolute,
 } from '../src/lib/funnel.js'
 import campaigns from '../src/data/campaigns.json'
 
 // Helper: pull a campaign from the real dataset by id.
 const byId = (id) => campaigns.find((c) => c.id === id)
 const camp001 = byId('camp_001')
+// camp_002 is an "agree" fixture: its rate-worst and absolute-worst steps are
+// the SAME step (idx 0). It is the foil to camp_001, where they differ.
+const camp002 = byId('camp_002')
 
 describe('stepConversion', () => {
   it('returns proceeds / views for a normal step', () => {
@@ -228,6 +232,98 @@ describe('worstStep', () => {
   })
 })
 
+describe('worstStepByAbsolute', () => {
+  it('returns null for empty steps', () => {
+    expect(worstStepByAbsolute({ steps: [] })).toBeNull()
+  })
+
+  it('returns null when steps property is missing', () => {
+    expect(worstStepByAbsolute({})).toBeNull()
+  })
+
+  it('single-step campaign: returns that one step at index 0', () => {
+    const campaign = { steps: [{ views: 400, proceeds: 100 }] }
+    const a = worstStepByAbsolute(campaign)
+    expect(a).not.toBeNull()
+    expect(a.index).toBe(0)
+    expect(a.step).toBe(campaign.steps[0])
+    expect(a.dropoffAbs).toBe(300)
+  })
+
+  it('returns the same 5-key shape as worstStep', () => {
+    const a = worstStepByAbsolute(camp001)
+    expect(Object.keys(a).sort()).toEqual(
+      ['conversion', 'dropoffAbs', 'dropoffRate', 'index', 'step'].sort(),
+    )
+    // shape parity: identical key set to worstStep
+    expect(Object.keys(a).sort()).toEqual(Object.keys(worstStep(camp001)).sort())
+  })
+
+  it('picks the step that loses the MOST PEOPLE: camp_001 -> Teaser (index 0, 4,780)', () => {
+    const a = worstStepByAbsolute(camp001)
+    expect(a.index).toBe(0)
+    expect(a.step).toBe(camp001.steps[0])
+    expect(a.dropoffAbs).toBe(4780)
+  })
+
+  it('absolute-worst (idx 0) DIFFERS from rate-worst (idx 1) on camp_001 — the 4.4 divergence', () => {
+    // This is the load-bearing case: the headcount-worst step is NOT the
+    // rate-worst step, so the two helpers must return different indices.
+    expect(worstStepByAbsolute(camp001).index).toBe(0)
+    expect(worstStep(camp001).index).toBe(1)
+    expect(worstStepByAbsolute(camp001).index).not.toBe(worstStep(camp001).index)
+  })
+
+  it('camp_002 (agree fixture): rate-worst and absolute-worst are the SAME step (idx 0)', () => {
+    // Foil to camp_001 — used as the "note absent" fixture in component tests.
+    expect(worstStep(camp002).index).toBe(0)
+    expect(worstStepByAbsolute(camp002).index).toBe(0)
+    expect(worstStepByAbsolute(camp002).index).toBe(worstStep(camp002).index)
+  })
+
+  it('tie-break on equal absolute drop-off: higher drop-off RATE wins', () => {
+    // Both steps lose exactly 50 people, but step 0 loses a far larger share.
+    const campaign = {
+      steps: [
+        { views: 100, proceeds: 50 }, // abs 50, rate 0.5
+        { views: 1000, proceeds: 950 }, // abs 50, rate 0.05
+      ],
+    }
+    const a = worstStepByAbsolute(campaign)
+    expect(a.dropoffAbs).toBe(50)
+    expect(a.index).toBe(0)
+    expect(a.dropoffRate).toBe(0.5)
+  })
+
+  it('tie-break on equal absolute AND equal rate: earliest index wins', () => {
+    const campaign = {
+      steps: [
+        { views: 200, proceeds: 100 }, // abs 100, rate 0.5
+        { views: 200, proceeds: 100 }, // abs 100, rate 0.5
+      ],
+    }
+    const a = worstStepByAbsolute(campaign)
+    expect(a.dropoffAbs).toBe(100)
+    expect(a.dropoffRate).toBe(0.5)
+    expect(a.index).toBe(0)
+  })
+
+  it('zero-views guards: numeric fields stay finite (no NaN/Infinity)', () => {
+    const campaign = {
+      steps: [
+        { views: 0, proceeds: 0 }, // guarded rate/conversion 0, abs 0
+        { views: 1000, proceeds: 100 }, // abs 900
+      ],
+    }
+    const a = worstStepByAbsolute(campaign)
+    expect(a.index).toBe(1)
+    expect(a.dropoffAbs).toBe(900)
+    expect(Number.isFinite(a.conversion)).toBe(true)
+    expect(Number.isFinite(a.dropoffRate)).toBe(true)
+    expect(Number.isFinite(a.dropoffAbs)).toBe(true)
+  })
+})
+
 describe('cross-cutting: numeric returns are always finite for awkward inputs', () => {
   const awkwardSteps = [
     { label: 'zero views & zero proceeds', step: { views: 0, proceeds: 0 } },
@@ -264,6 +360,18 @@ describe('cross-cutting: numeric returns are always finite for awkward inputs', 
       expect(Number.isFinite(w.dropoffRate)).toBe(true)
       expect(Number.isFinite(w.dropoffAbs)).toBe(true)
       expect(Number.isInteger(w.index)).toBe(true)
+    }
+  })
+
+  it.each(awkwardCampaigns)('worstStepByAbsolute numeric fields stay finite (or null) for $label', ({ campaign }) => {
+    const a = worstStepByAbsolute(campaign)
+    if (a === null) {
+      expect(a).toBeNull()
+    } else {
+      expect(Number.isFinite(a.conversion)).toBe(true)
+      expect(Number.isFinite(a.dropoffRate)).toBe(true)
+      expect(Number.isFinite(a.dropoffAbs)).toBe(true)
+      expect(Number.isInteger(a.index)).toBe(true)
     }
   })
 

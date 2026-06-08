@@ -83,3 +83,40 @@ export function worstStep(campaign) {
     dropoffAbs: worstAbs,
   }
 }
+
+/**
+ * The step that loses the most people in absolute terms (highest
+ * `stepDropoffAbs`). Ties are broken by highest drop-off rate, then by earliest
+ * index — mirroring `worstStep`'s tie logic and return shape.
+ *
+ * @returns {{ index: number, step: object, conversion: number,
+ *   dropoffRate: number, dropoffAbs: number } | null} null when there are no steps.
+ */
+export function worstStepByAbsolute(campaign) {
+  const steps = campaign.steps
+  if (!steps || steps.length === 0) return null
+
+  let worstIndex = 0
+  let worstAbs = stepDropoffAbs(steps[0])
+  let worstRate = stepDropoffRate(steps[0])
+
+  for (let i = 1; i < steps.length; i++) {
+    const abs = stepDropoffAbs(steps[i])
+    const rate = stepDropoffRate(steps[i])
+    // Strict comparisons keep the earliest index on a tie.
+    if (abs > worstAbs || (abs === worstAbs && rate > worstRate)) {
+      worstIndex = i
+      worstAbs = abs
+      worstRate = rate
+    }
+  }
+
+  const step = steps[worstIndex]
+  return {
+    index: worstIndex,
+    step,
+    conversion: stepConversion(step),
+    dropoffRate: worstRate,
+    dropoffAbs: worstAbs,
+  }
+}
