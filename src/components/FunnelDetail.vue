@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { overallConversion, worstStep, worstStepByAbsolute } from '../lib/funnel.js'
 import { formatPercent, formatCount } from '../lib/format.js'
 import FunnelStep from './FunnelStep.vue'
+import Insights from './Insights.vue'
 
 const props = defineProps({
   // The already-selected campaign, passed in by App.vue. This component does
@@ -139,5 +140,11 @@ const calloutNote = computed(() => {
         :is-worst="highlightActive && index === worst.index"
       />
     </div>
+
+    <!--
+      Iteration 5: rule-based recommendations. Additive last region, below the
+      funnel steps. Presentational only — all rules live in src/lib/insights.js.
+    -->
+    <Insights :campaign="campaign" />
   </section>
 </template>
