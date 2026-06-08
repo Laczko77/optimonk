@@ -82,9 +82,9 @@ describe('Insights.vue — empty state', () => {
     expect(items(wrapper)).toHaveLength(0)
     const empty = wrapper.find('[data-testid="insights-empty"]')
     expect(empty.exists()).toBe(true)
-    expect(empty.text()).toContain('No major issues detected')
+    expect(empty.text()).toContain('Nem találtunk komoly problémát')
     expect(empty.text()).toContain(
-      'This funnel looks healthy across its steps — nothing stands out as a problem right now.'
+      'Ez a tölcsér minden lépésében egészségesnek tűnik — jelenleg semmi sem tűnik problémásnak.'
     )
   })
 

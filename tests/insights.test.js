@@ -107,16 +107,16 @@ describe('getInsights — Rule A (capture step, ≥ 60% drop)', () => {
     }
     const a = getInsights(fixture).find((i) => i.id === 'capture-step-high-dropoff')
     expect(a.stepIndex).toBe(2)
-    expect(a.text).toContain('80.0%')
+    expect(a.text).toContain('80,0%')
     expect(a.text).toContain('Email B')
   })
 
   it('uses "email" wording + camp_001 anchor copy (73.4%, 2,350 people, "Email capture")', () => {
     const a = getInsights(camp001).find((i) => i.id === 'capture-step-high-dropoff')
-    expect(a.title).toContain('email')
-    expect(a.title).not.toContain('sign-up')
-    expect(a.text).toContain('73.4%')
-    expect(a.text).toContain('2,350 people')
+    expect(a.title).toContain('e-mailes')
+    expect(a.title).not.toContain('regisztrációs')
+    expect(a.text).toContain('73,4%')
+    expect(a.text).toContain('2 350 fő')
     expect(a.text).toContain('"Email capture"')
   })
 
@@ -128,11 +128,11 @@ describe('getInsights — Rule A (capture step, ≥ 60% drop)', () => {
       ],
     }
     const a = getInsights(fixture).find((i) => i.id === 'capture-step-high-dropoff')
-    expect(a.title).toContain('sign-up')
-    expect(a.title).not.toContain('email')
+    expect(a.title).toContain('regisztrációs')
+    expect(a.title).not.toContain('e-mailes')
   })
 
-  it('singular guard: a capture step that loses exactly 1 person reads "1 person"', () => {
+  it('singular guard: a capture step that loses exactly 1 person reads "1 fő"', () => {
     const fixture = {
       steps: [
         { name: 'Teaser', type: 'teaser', views: 1000, proceeds: 900 }, // no B
@@ -140,8 +140,10 @@ describe('getInsights — Rule A (capture step, ≥ 60% drop)', () => {
       ],
     }
     const a = getInsights(fixture).find((i) => i.id === 'capture-step-high-dropoff')
-    expect(a.text).toContain('1 person')
-    expect(a.text).not.toContain('1 people')
+    // Hungarian noun "fő" is invariant: assert the exact singular count renders,
+    // and guard against a plural-form bug ("1 fők") since there is no plural split.
+    expect(a.text).toContain('(1 fő)')
+    expect(a.text).not.toContain('1 fők')
   })
 })
 
@@ -153,7 +155,7 @@ describe('getInsights — Rule B (first/teaser step)', () => {
   it('camp_001 first-step text uses formatPercent(dropoffRate) (68.0%)', () => {
     const b = getInsights(camp001).find((i) => i.id === 'first-step-high-dropoff')
     const expected = formatPercent(stepDropoffRate(camp001.steps[0]))
-    expect(expected).toBe('68.0%') // 1 - 3200/10000 = 0.68 exactly
+    expect(expected).toBe('68,0%') // 1 - 3200/10000 = 0.68 exactly
     expect(b.text).toContain(expected)
     expect(b.stepIndex).toBe(0)
   })
@@ -188,7 +190,7 @@ describe('getInsights — Rule C (closing step)', () => {
     expect(shape(result)).toEqual([
       { id: 'closing-step-strong', severity: 'positive', stepIndex: 1 },
     ])
-    expect(result[0].text).toContain('85.0%')
+    expect(result[0].text).toContain('85,0%')
   })
 
   it('dead zone: 84% completion → no closing insight', () => {
@@ -204,18 +206,18 @@ describe('getInsights — Rule C (closing step)', () => {
     expect(shape(result)).toEqual([
       { id: 'closing-step-weak', severity: 'warning', stepIndex: 1 },
     ])
-    expect(result[0].text).toContain('69.0%')
+    expect(result[0].text).toContain('69,0%')
   })
 
   it('C-positive anchor copy: camp_001 closing step → "96.5%" + "Success & coupon"', () => {
     const c = getInsights(camp001).find((i) => i.id === 'closing-step-strong')
-    expect(c.text).toContain('96.5%')
+    expect(c.text).toContain('96,5%')
     expect(c.text).toContain('Success & coupon')
   })
 
   it('C-warning anchor copy: camp_002 closing step → "52.4%" + "Coupon reveal"', () => {
     const c = getInsights(camp002).find((i) => i.id === 'closing-step-weak')
-    expect(c.text).toContain('52.4%')
+    expect(c.text).toContain('52,4%')
     expect(c.text).toContain('Coupon reveal')
   })
 })
@@ -266,12 +268,12 @@ describe('getInsights — Rule D (overall conversion)', () => {
 
   it('D-high anchor copy: camp_002 overall → "14.7%"', () => {
     const d = getInsights(camp002).find((i) => i.id === 'overall-conversion-strong')
-    expect(d.text).toContain('14.7%')
+    expect(d.text).toContain('14,7%')
   })
 
   it('D-low anchor copy: camp_003 overall → "2.2%"', () => {
     const d = getInsights(camp003).find((i) => i.id === 'overall-conversion-low')
-    expect(d.text).toContain('2.2%')
+    expect(d.text).toContain('2,2%')
   })
 })
 

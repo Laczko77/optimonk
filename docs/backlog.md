@@ -5,8 +5,12 @@
 A funnel analytics mini-app for multi-step popup campaigns. It loads a static JSON dataset, lists
 campaigns with their overall conversion rate, lets the user open one campaign to see a step-by-step
 funnel (visitors, per-step conversion, drop-off), and visually highlights the biggest drop-off.
-Optionally it shows 2–3 rule-based recommendations. Built with Vue 3 + Vite + Tailwind. No backend,
-database, or auth.
+Optionally it shows 2–3 rule-based recommendations. Built with Vue 3 + Vite + Tailwind. No
+database or auth.
+
+> **Scope note (2026-06-08):** the original v1 (Iterations 1–6) loaded the dataset statically with
+> no backend. Iteration 7 reopens scope to add a **minimal Node backend** that serves the dataset
+> over `GET /api/campaigns`, which the frontend fetches at runtime.
 
 > Note: UI design specs in `/docs/ui/` are authored on-demand by the ui-designer immediately before
 > each UI iteration starts, so an empty `/docs/ui/` is expected until that point and does not mean
@@ -18,12 +22,14 @@ database, or auth.
 
 | Metric          | Value |
 |-----------------|-------|
-| Total tasks     | 28    |
-| Completed tasks | 28    |
+| Total tasks     | 33    |
+| Completed tasks | 33    |
 | Remaining tasks | 0     |
 | Completion      | 100%  |
 
-> **All backlog items are complete. The project backlog is finished.**
+> **All backlog items are complete. The project backlog is finished.** Iterations 1–7 are DONE.
+> Iteration 7 (added 2026-06-08) introduced a minimal Node backend, adopted the assignment's
+> official sample dataset, and made data loading robust; it is now delivered and verified.
 
 ---
 
@@ -183,6 +189,7 @@ spots the problem instantly.
 
 **UI required:** No
 
+
 **Tasks:**
 
 - [x] 6.1 Visual/responsive polish pass on both screens
@@ -206,5 +213,58 @@ spots the problem instantly.
   cuts, solution description (architecture + main components), AI tool usage, and v2 improvements
 
 **Dependencies:** Iteration 5
+
+---
+
+### Iteration 7 — Backend + Official Dataset & Data-format Robustness
+
+**Status:** DONE
+
+**Goal:** Bring the app in line with the assignment brief (`docs/task.md`): serve the campaign data
+from a minimal Node backend that the frontend fetches at runtime, adopt the assignment's official
+sample campaigns as the canonical dataset, and make data loading robust (loading / empty / error
+states, tolerant JSON shape).
+
+**UI required:** Yes — minimal. Only the new **loading** and **error** states are net-new
+user-facing UI (the empty state already exists from Iteration 2). Before implementing 7.2, a short
+UI spec for the loading + error (+ existing empty) states must exist in `/docs/ui/` (a new small
+spec or an extension of an existing one). The backend (7.1), dataset (7.3), and tooling (7.4) tasks
+have no UI dependency and are not blocked.
+
+**Tasks:**
+
+- [x] 7.1 Add a minimal Node/Express backend exposing `GET /api/campaigns` that returns the dataset
+      in the assignment's canonical `{ "campaigns": [...] }` shape. Keep it tiny (single file /
+      `server/`), no DB, no auth; reads `src/data/campaigns.json` (or a shared copy) and serves it.
+- [x] 7.2 Make the frontend load campaigns by **fetching `/api/campaigns`** via the `useCampaigns()`
+      composable, with explicit **loading**, **empty**, and **error** states. Normalize the response
+      so BOTH `{ "campaigns": [...] }` and a bare `[...]` array are accepted (also tolerate a
+      missing/empty `steps` array without crashing).
+- [x] 7.3 Adopt the assignment's **official sample campaigns** as the canonical dataset in
+      `src/data/campaigns.json`, preserving each campaign's `id`/`name`/`device` and each step's
+      `id`/`name`/`type`/`views`/`proceeds`/`description` exactly as given in `docs/task.md`
+      (see the composition decision recorded by product-owner).
+- [x] 7.4 Single-command dev run: `npm run dev` starts **both** the backend and Vite (e.g. via
+      `concurrently`), with a Vite dev-server proxy forwarding `/api` to the backend. Update
+      `README.md` accordingly (prerequisites, the single start command, and the URL to open).
+- [x] 7.5 Re-anchor/extend the Vitest suites so the full suite passes against the new official
+      dataset **and** the async data-loading path (mock `fetch`); cover the loading/empty/error
+      branches and the `{campaigns}`-vs-bare-array normalization. Keep existing coverage of the
+      pure funnel/insights math.
+
+**Acceptance Criteria:**
+
+- The app runs from a clean clone following the `README` only, with a single `npm run dev` command
+  that brings up both backend and frontend.
+- Pasting the exact JSON from `docs/task.md` (the `{ "campaigns": [...] }` block) into the dataset
+  works end-to-end; a bare top-level array also works (normalization verified by tests).
+- The full Vitest suite is green, including the new async-loading and normalization tests.
+- Loading, empty, and error states each render correctly: a loading indicator while fetching, the
+  existing friendly empty state for an empty dataset, and a clear non-crashing error state if the
+  fetch fails.
+- The official `camp_001` still shows overall conversion ≈ 8.2% and an email-step worst drop-off of
+  ≈ 27% conversion / ≈ 73% drop-off / 2,350 people lost (existing Iteration 4 copy stays correct).
+
+**Dependencies:** Iterations 1–6
 
 ---

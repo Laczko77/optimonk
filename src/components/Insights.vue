@@ -16,38 +16,38 @@ const insights = computed(() => getInsights(props.campaign))
 const SEVERITY_STYLES = {
   critical: {
     icon: '💡',
-    container: 'border-l-4 border-rose-500 bg-rose-50',
-    title: 'text-rose-900',
-    text: 'text-rose-700',
+    container: 'border border-warn/20 border-l-4 border-l-warn bg-warn-soft',
+    title: 'text-warn',
+    text: 'text-ink-muted',
   },
   warning: {
     icon: '💡',
-    container: 'border-l-4 border-amber-500 bg-amber-50',
+    container: 'border border-amber-200 border-l-4 border-l-amber-500 bg-amber-50',
     title: 'text-amber-900',
-    text: 'text-amber-700',
+    text: 'text-amber-800',
   },
   positive: {
     icon: '✓',
-    container: 'border-l-4 border-emerald-500 bg-emerald-50',
+    container: 'border border-emerald-200 border-l-4 border-l-emerald-500 bg-emerald-50',
     title: 'text-emerald-900',
-    text: 'text-emerald-700',
+    text: 'text-emerald-800',
   },
 }
 </script>
 
 <template>
-  <section class="mt-10 border-t border-slate-200 pt-8" data-testid="insights-panel">
-    <h2 class="text-lg font-semibold text-slate-900">Suggestions</h2>
-    <p v-if="insights.length" class="mt-0.5 text-sm text-slate-500">
-      Based on this campaign's drop-offs
+  <section class="mt-10 border-t border-border pt-8" data-testid="insights-panel">
+    <h2 class="text-xl font-bold text-ink">Ajánlások</h2>
+    <p v-if="insights.length" class="mt-0.5 text-sm text-ink-muted">
+      A kampány lemorzsolódásai alapján
     </p>
 
-    <div class="mt-4 flex flex-col gap-3">
+    <div class="stagger mt-4 flex flex-col gap-3">
       <!-- One block per insight, in the order the lib returned them. -->
       <div
         v-for="insight in insights"
         :key="insight.id"
-        class="rounded-lg p-4"
+        class="rounded-2xl p-4 shadow-sm"
         :class="SEVERITY_STYLES[insight.severity].container"
         data-testid="insight-item"
         :data-insight-id="insight.id"
@@ -65,16 +65,16 @@ const SEVERITY_STYLES = {
       <!-- Empty state: calm styling (not an alert), still informative. -->
       <div
         v-if="!insights.length"
-        class="rounded-lg border border-slate-200 bg-slate-50 p-4"
+        class="rounded-2xl border border-border bg-bg p-4 shadow-sm"
         data-testid="insights-empty"
       >
-        <p class="text-sm font-semibold text-slate-700">
+        <p class="text-sm font-semibold text-ink">
           <span aria-hidden="true">✓</span>
-          No major issues detected
+          Nem találtunk komoly problémát
         </p>
-        <p class="mt-1 text-sm text-slate-500">
-          This funnel looks healthy across its steps — nothing stands out as a problem
-          right now.
+        <p class="mt-1 text-sm text-ink-muted">
+          Ez a tölcsér minden lépésében egészségesnek tűnik — jelenleg semmi sem tűnik
+          problémásnak.
         </p>
       </div>
     </div>

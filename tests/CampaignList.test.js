@@ -75,7 +75,7 @@ describe('CampaignList — async state machine (mutually exclusive)', () => {
     const wrapper = mount(CampaignList)
 
     const loading = wrapper.get('[data-testid="campaigns-loading"]')
-    expect(loading.text()).toBe('Loading campaigns…')
+    expect(loading.text()).toBe('Kampányok betöltése…')
     // no cards, no error, no empty behind the loading message
     expect(cards(wrapper)).toHaveLength(0)
     expect(has(wrapper, 'campaigns-error')).toBe(false)
@@ -95,8 +95,8 @@ describe('CampaignList — async state machine (mutually exclusive)', () => {
     const wrapper = mount(CampaignList)
 
     const empty = wrapper.get('[data-testid="empty-state"]')
-    expect(empty.text()).toContain('No campaigns yet')
-    expect(empty.text()).toContain('There are no campaigns to show right now.')
+    expect(empty.text()).toContain('Még nincsenek kampányok')
+    expect(empty.text()).toContain('Jelenleg nincs megjeleníthető kampány.')
     expectOnlyState(wrapper, 'empty-state')
   })
 
@@ -105,12 +105,12 @@ describe('CampaignList — async state machine (mutually exclusive)', () => {
     const wrapper = mount(CampaignList)
 
     const error = wrapper.get('[data-testid="campaigns-error"]')
-    expect(error.text()).toContain("We couldn't load your campaigns")
+    expect(error.text()).toContain('Nem sikerült betölteni a kampányokat')
     expect(squish(error.text())).toContain(
-      'Something went wrong while loading your campaigns. Please check your connection and try again.',
+      'Hiba történt az adatok betöltése közben. Ellenőrizze a kapcsolatot, és próbálja újra.',
     )
     const retry = wrapper.get('[data-testid="campaigns-retry"]')
-    expect(retry.text()).toContain('Try again')
+    expect(retry.text()).toContain('Újrapróbálom')
     expect(retry.element.tagName).toBe('BUTTON')
 
     expectOnlyState(wrapper, 'campaigns-error')
@@ -155,8 +155,8 @@ describe('CampaignList — rendering with loaded data (A)', () => {
   it('renders the page header copy', () => {
     const wrapper = mount(CampaignList)
     const header = wrapper.get('header').text()
-    expect(header).toContain('Campaigns')
-    expect(header).toContain('See how each popup campaign is converting.')
+    expect(header).toContain('Kampányok')
+    expect(header).toContain('Nézze meg, hogyan konvertálnak az egyes popup kampányok.')
   })
 
   it('renders each campaign name on its own card', () => {

@@ -33,35 +33,35 @@ describe('CampaignCard — content (A)', () => {
     expect(text(wrapper, 'campaign-card-name')).toBe('Welcome Discount Popup')
   })
 
-  it('renders the device capitalized', () => {
-    // Official dataset: camp_001/002 are desktop, camp_003 is mobile.
-    // desktop -> Desktop, mobile -> Mobile (capitalization of the raw value).
+  it('renders the device label (Hungarian DEVICE_LABELS map)', () => {
+    // Official dataset: camp_001/002 are desktop, camp_003 is mobile. The raw
+    // JSON value stays "desktop"/"mobile"; the component maps it to Hungarian.
     expect(
       text(mount(CampaignCard, { props: { campaign: byId('camp_001') } }), 'campaign-card-device'),
-    ).toBe('Desktop')
+    ).toBe('Asztali')
     expect(
       text(mount(CampaignCard, { props: { campaign: byId('camp_002') } }), 'campaign-card-device'),
-    ).toBe('Desktop')
+    ).toBe('Asztali')
     expect(
       text(mount(CampaignCard, { props: { campaign: byId('camp_003') } }), 'campaign-card-device'),
-    ).toBe('Mobile')
+    ).toBe('Mobil')
   })
 
-  it('renders the plural step count for a 3-step campaign', () => {
+  it('renders the step count for a 3-step campaign', () => {
     const wrapper = mount(CampaignCard, { props: { campaign: byId('camp_001') } })
-    expect(text(wrapper, 'campaign-card-steps')).toBe('3 steps')
+    expect(text(wrapper, 'campaign-card-steps')).toBe('3 lépés')
   })
 
-  it('renders the singular "1 step" label for a single-step campaign', () => {
+  it('renders the "1 lépés" label for a single-step campaign', () => {
     const wrapper = mount(CampaignCard, { props: { campaign: singleStepCampaign } })
-    expect(text(wrapper, 'campaign-card-steps')).toBe('1 step')
+    expect(text(wrapper, 'campaign-card-steps')).toBe('1 lépés')
   })
 })
 
 describe('CampaignCard — conversion is lib-tied (B)', () => {
   it('B1: camp_001 displays the hardcoded literal "8.2%"', () => {
     const wrapper = mount(CampaignCard, { props: { campaign: byId('camp_001') } })
-    expect(text(wrapper, 'campaign-card-conversion')).toBe('8.2%')
+    expect(text(wrapper, 'campaign-card-conversion')).toBe('8,2%')
   })
 
   it('B2: each card shows formatPercent(overallConversion(campaign)) — consumes the lib, never recomputes', () => {
@@ -74,12 +74,12 @@ describe('CampaignCard — conversion is lib-tied (B)', () => {
 
   it('B3: camp_002 rounds to "14.7%" (1100/7500 = 14.66.. -> one decimal)', () => {
     const wrapper = mount(CampaignCard, { props: { campaign: byId('camp_002') } })
-    expect(text(wrapper, 'campaign-card-conversion')).toBe('14.7%')
+    expect(text(wrapper, 'campaign-card-conversion')).toBe('14,7%')
   })
 
   it('B4: camp_003 rounds to "2.2%" (260/12000 = 2.16.. -> one decimal)', () => {
     const wrapper = mount(CampaignCard, { props: { campaign: byId('camp_003') } })
-    expect(text(wrapper, 'campaign-card-conversion')).toBe('2.2%')
+    expect(text(wrapper, 'campaign-card-conversion')).toBe('2,2%')
   })
 })
 

@@ -27,6 +27,10 @@ npm install
 npm run dev
 ```
 
+This single command starts **both** the API and the web app together (via
+`concurrently`): the minimal Express backend on port **3001** and the Vite dev server on
+**5173**. The dev server proxies `/api` requests to the backend, so no extra setup is needed.
+
 Then open **http://localhost:5173** in your browser.
 
 ## Run the tests
@@ -47,18 +51,24 @@ npm run preview    # serve the production build locally
 
 ## Project structure / architecture
 
-No backend, database, or auth — everything runs on the client against a single static JSON file.
+A minimal **Express backend** (`server/index.js`) exposes `GET /api/campaigns`, reading the dataset
+from `src/data/campaigns.json` and returning it in the canonical `{ "campaigns": [...] }` shape. The
+frontend **fetches** that endpoint at runtime via the `useCampaigns()` composable (no static
+import), which manages loading / error / empty states. There is no database and no auth.
 
 ```
+server/
+  index.js                # minimal Express backend serving GET /api/campaigns (port 3001)
+
 src/
-  data/campaigns.json     # the static campaign dataset (loaded on the client)
+  data/campaigns.json     # the campaign dataset (served by the backend, fetched by the frontend)
   lib/
     funnel.js             # PURE funnel math: stepConversion, stepDropoffRate, stepDropoffAbs,
                           #   overallConversion, worstStep, worstStepByAbsolute (no Vue, fully unit-tested)
     insights.js           # PURE rule-based suggestion engine: getInsights(campaign) (unit-tested)
     format.js             # display-only helpers: formatPercent, formatCount
   composables/
-    useCampaigns.js       # loads the dataset, exposes campaigns + getCampaignById
+    useCampaigns.js       # fetches /api/campaigns, exposes campaigns/loading/error/reload + getCampaignById
   components/
     CampaignList.vue      # the list screen (one CampaignCard per campaign)
     CampaignCard.vue

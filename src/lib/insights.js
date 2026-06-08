@@ -43,9 +43,9 @@ const SEVERITY_RANK = { critical: 0, warning: 1, positive: 2 }
 
 const CAPTURE_TYPES = new Set(['email', 'form'])
 
-// Singular guard so "1 person" reads naturally (matches Iterations 3–4).
+// Hungarian "fő" is invariant after a number, so no singular/plural branch.
 function peopleLabel(count) {
-  return `${formatCount(count)} ${count === 1 ? 'person' : 'people'}`
+  return `${formatCount(count)} fő`
 }
 
 /**
@@ -65,15 +65,17 @@ function captureStepInsight(steps) {
   })
   if (!worst) return null
 
-  const typeWord = worst.step.type === 'email' ? 'email' : 'sign-up'
+  // The article is baked into the label so the title reads correctly for both
+  // values: "az e-mailes lépés" vs "a regisztrációs lépés".
+  const typeWord = worst.step.type === 'email' ? 'az e-mailes' : 'a regisztrációs'
   return {
     id: 'capture-step-high-dropoff',
     severity: 'critical',
-    title: `Your ${typeWord} step is losing most visitors`,
+    title: `A legtöbb látogatót ${typeWord} lépés veszíti el`,
     text:
-      `${formatPercent(worst.rate)} of people leave at "${worst.step.name}" ` +
-      `(${peopleLabel(worst.abs)}). Try asking for the email later in the flow, ` +
-      `or offer a one-click / social login to lower the friction.`,
+      `A látogatók ${formatPercent(worst.rate)}-a lemorzsolódik ennél a lépésnél: ` +
+      `"${worst.step.name}" (${peopleLabel(worst.abs)}). Kérje be az e-mail-címet később ` +
+      `a folyamatban, vagy kínáljon egykattintásos / közösségi bejelentkezést a súrlódás csökkentésére.`,
     stepIndex: worst.index,
     _magnitude: worst.rate,
     _tiebreak: worst.abs,
@@ -90,11 +92,11 @@ function firstStepInsight(steps) {
   return {
     id: 'first-step-high-dropoff',
     severity: 'warning',
-    title: 'Most people drop at the very first step',
+    title: 'A legtöbben rögtön az első lépésnél lemorzsolódnak',
     text:
-      `${formatPercent(rate)} of people leave right after "${step.name}" ` +
-      `(${peopleLabel(abs)}). A clearer headline or a stronger offer up front ` +
-      `could keep more people in the flow.`,
+      `A látogatók ${formatPercent(rate)}-a rögtön ezután lemorzsolódik: "${step.name}" ` +
+      `(${peopleLabel(abs)}). Egy világosabb címsor vagy egy erősebb ajánlat az elején ` +
+      `többeket tarthatna meg a folyamatban.`,
     stepIndex: 0,
     _magnitude: rate,
     _tiebreak: abs,
@@ -112,10 +114,10 @@ function closingStepInsight(steps) {
     return {
       id: 'closing-step-strong',
       severity: 'positive',
-      title: 'Your closing step is working well',
+      title: 'A záró lépés jól működik',
       text:
-        `Once people reach "${step.name}", ${formatPercent(conv)} complete. ` +
-        `Your offer and final step are solid — focus your effort earlier in the funnel.`,
+        `Akik eljutnak idáig ("${step.name}"), azok ${formatPercent(conv)}-a be is fejezi. ` +
+        `Az ajánlat és a záró lépés rendben van — a tölcsér korábbi szakaszaira érdemes koncentrálni.`,
       stepIndex: index,
       _magnitude: conv,
       _tiebreak: 0,
@@ -125,10 +127,10 @@ function closingStepInsight(steps) {
     return {
       id: 'closing-step-weak',
       severity: 'warning',
-      title: "Even people who reach the end don't all convert",
+      title: 'Még a végére eljutók sem konvertálnak mind',
       text:
-        `Only ${formatPercent(conv)} complete at "${step.name}". A stronger final ` +
-        `offer or a simpler last step could close more of the people who got this far.`,
+        `Itt csak ${formatPercent(conv)} fejezi be: "${step.name}". Egy erősebb záró ajánlat ` +
+        `vagy egy egyszerűbb utolsó lépés többeket konvertálhatna az idáig eljutók közül.`,
       stepIndex: index,
       _magnitude: 1 - conv, // worse (lower completion) → larger magnitude
       _tiebreak: 0,
@@ -144,10 +146,10 @@ function overallInsight(campaign) {
     return {
       id: 'overall-conversion-low',
       severity: 'warning',
-      title: 'Overall conversion is low',
+      title: 'Az összesített konverzió alacsony',
       text:
-        `Only ${formatPercent(overall)} of visitors complete this campaign. ` +
-        `Fixing the biggest drop-off above is the fastest way to lift this number.`,
+        `A látogatóknak csak ${formatPercent(overall)}-a fejezi be ezt a kampányt. ` +
+        `A fenti legnagyobb lemorzsolódás javítása a leggyorsabb módja ennek a számnak a növelésére.`,
       stepIndex: null,
       _magnitude: OVERALL_LOW_MAX - overall, // distance below the threshold
       _tiebreak: 0,
@@ -157,10 +159,10 @@ function overallInsight(campaign) {
     return {
       id: 'overall-conversion-strong',
       severity: 'positive',
-      title: 'This campaign converts well',
+      title: 'Ez a kampány jól konvertál',
       text:
-        `${formatPercent(overall)} of visitors complete this campaign — strong ` +
-        `for a multi-step popup. Keep it running and use it as a template for others.`,
+        `A látogatók ${formatPercent(overall)}-a fejezi be ezt a kampányt — ez erős eredmény ` +
+        `egy többlépcsős popupnál. Érdemes futni hagyni, és sablonként használni a többihez.`,
       stepIndex: null,
       _magnitude: overall - OVERALL_HIGH_MIN, // distance above the threshold
       _tiebreak: 0,

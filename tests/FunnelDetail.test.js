@@ -49,28 +49,35 @@ const stepPart = (wrapper, index, testid) =>
 // and survives toFixed rounding without hardcoding the ambiguous literals.
 function expectedResult(step, isLast) {
   const abs = stepDropoffAbs(step)
-  const noun = abs === 1 ? 'person' : 'people'
+  // Hungarian uses the invariant noun "fő" — no singular/plural branch.
   if (isLast) {
-    return `${formatPercent(stepConversion(step))} complete · ${formatCount(abs)} ${noun} didn't complete`
+    return `${formatPercent(stepConversion(step))} befejezi · ${formatCount(abs)} fő nem fejezte be`
   }
-  return `${formatPercent(stepConversion(step))} continue · ${formatPercent(stepDropoffRate(step))} drop off (${formatCount(abs)} ${noun} lost)`
+  return `${formatPercent(stepConversion(step))} lép tovább · ${formatPercent(stepDropoffRate(step))} lemorzsolódik (${formatCount(abs)} fő kiesik)`
 }
 
-const expectedViews = (step) => `${formatCount(step.views)} people`
+const expectedViews = (step) => `${formatCount(step.views)} fő`
 
 // Iteration 4 callout copy, mirrored from FunnelDetail's templates but sourced
 // entirely from the lib (worstStep / worstStepByAbsolute + formatPercent /
 // formatCount) so the component can never silently diverge from the math.
 // Uses the exact em-dash "—" (U+2014) the component renders as the separator.
-const peopleNoun = (count) => (count === 1 ? 'person' : 'people')
+// Hungarian copy uses the invariant noun "fő" (no singular/plural branch).
+//
+// The callout is now split into a bold headline + a neutral detail line (was a
+// single paragraph). The headline names the worst step; the detail carries the
+// drop-off rate, the absolute count, and the continue rate. Two helpers mirror
+// that split, each still lib-tied so the math can't drift from the copy.
+function expectedHeadline(campaign) {
+  const w = worstStep(campaign)
+  return `Legnagyobb lemorzsolódás — ${w.index + 1}. lépés: ${w.step.name}`
+}
 
-function expectedPrimary(campaign) {
+function expectedDetail(campaign) {
   const w = worstStep(campaign)
   return (
-    `Biggest drop-off is at Step ${w.index + 1} — ${w.step.name}: ` +
-    `${formatPercent(w.dropoffRate)} of people leave here ` +
-    `(${formatCount(w.dropoffAbs)} ${peopleNoun(w.dropoffAbs)}), ` +
-    `and only ${formatPercent(w.conversion)} continue.`
+    `A látogatók ${formatPercent(w.dropoffRate)}-a távozik itt ` +
+    `(${formatCount(w.dropoffAbs)} fő); csak ${formatPercent(w.conversion)} lép tovább.`
   )
 }
 
@@ -78,12 +85,17 @@ function expectedSecondary(campaign) {
   const a = worstStepByAbsolute(campaign)
   const w = worstStep(campaign)
   return (
-    `Heads up: Step ${a.index + 1} — ${a.step.name} loses the most people overall ` +
-    `(${formatCount(a.dropoffAbs)}), but Step ${w.index + 1} loses the largest share.`
+    `Megjegyzés: összességében a legtöbb látogatót ez a lépés veszíti el — ` +
+    `${a.index + 1}. lépés: ${a.step.name} (${formatCount(a.dropoffAbs)} fő), ` +
+    `de arányát tekintve a legnagyobb lemorzsolódás a(z) ${w.index + 1}. lépésnél van.`
   )
 }
 
 const callout = (wrapper) => wrapper.find('[data-testid="worst-step-callout"]')
+const calloutHeadline = (wrapper) =>
+  wrapper.find('[data-testid="worst-step-callout-headline"]')
+const calloutDetail = (wrapper) =>
+  wrapper.find('[data-testid="worst-step-callout-detail"]')
 const calloutNote = (wrapper) =>
   wrapper.find('[data-testid="worst-step-callout-note"]')
 const worstFlags = (wrapper) => wrapper.findAll('[data-is-worst="true"]')
@@ -169,9 +181,9 @@ describe('FunnelDetail — AC1: steps render in order (camp_001)', () => {
 
   it('renders the view counts "10,000" / "3,200" / "850"', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
-    expect(stepPart(wrapper, 0, 'funnel-step-views').text()).toBe('10,000 people')
-    expect(stepPart(wrapper, 1, 'funnel-step-views').text()).toBe('3,200 people')
-    expect(stepPart(wrapper, 2, 'funnel-step-views').text()).toBe('850 people')
+    expect(stepPart(wrapper, 0, 'funnel-step-views').text()).toBe('10 000 fő')
+    expect(stepPart(wrapper, 1, 'funnel-step-views').text()).toBe('3 200 fő')
+    expect(stepPart(wrapper, 2, 'funnel-step-views').text()).toBe('850 fő')
   })
 
   it('view counts are lib-tied to formatCount(step.views)', () => {
@@ -205,11 +217,11 @@ describe('FunnelDetail — AC2: non-last result lines (camp_001)', () => {
   it('the email step (idx 1) anchors at 26.6% continue / 73.4% drop off / 2,350 people lost', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     const result = stepPart(wrapper, 1, 'funnel-step-result').text()
-    expect(result).toContain('26.6%')
-    expect(result).toContain('73.4%')
-    expect(result).toContain('2,350 people lost')
+    expect(result).toContain('26,6%')
+    expect(result).toContain('73,4%')
+    expect(result).toContain('2 350 fő kiesik')
     // exact full line, lib-tied (proves the middle dot separator " · " too)
-    expect(result).toBe('26.6% continue · 73.4% drop off (2,350 people lost)')
+    expect(result).toBe('26,6% lép tovább · 73,4% lemorzsolódik (2 350 fő kiesik)')
   })
 
   it('uses the middle-dot separator "·" with surrounding spaces', () => {
@@ -225,10 +237,11 @@ describe('FunnelDetail — AC3: last vs non-last wording (camp_001)', () => {
   it('the last step (idx 2, Success & coupon) uses completion wording, not continue/drop-off', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     const result = stepPart(wrapper, 2, 'funnel-step-result').text()
-    expect(result).toContain('complete')
-    expect(result).toContain("30 people didn't complete")
-    expect(result).not.toContain('continue')
-    expect(result).not.toContain('drop off')
+    expect(result).toContain('befejezi')
+    expect(result).toContain('30 fő nem fejezte be')
+    // last-step branch must NOT show the mid-funnel (non-last) wording
+    expect(result).not.toContain('lép tovább')
+    expect(result).not.toContain('lemorzsolódik')
     expect(result).toBe(expectedResult(camp001.steps[2], true))
   })
 
@@ -236,9 +249,10 @@ describe('FunnelDetail — AC3: last vs non-last wording (camp_001)', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     for (const i of [0, 1]) {
       const result = stepPart(wrapper, i, 'funnel-step-result').text()
-      expect(result).toContain('continue')
-      expect(result).toContain('drop off')
-      expect(result).not.toContain('complete')
+      expect(result).toContain('lép tovább')
+      expect(result).toContain('lemorzsolódik')
+      // non-last branch must NOT show the last-step completion wording
+      expect(result).not.toContain('befejezi')
     }
   })
 })
@@ -269,14 +283,15 @@ describe('FunnelDetail — AC5: single-step campaign', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: singleStep } })
 
     expect(steps(wrapper)).toHaveLength(1)
-    expect(wrapper.get('[data-testid="detail-summary"]').text()).toContain('1 step')
-    expect(wrapper.get('[data-testid="detail-summary"]').text()).not.toContain('1 steps')
+    expect(wrapper.get('[data-testid="detail-summary"]').text()).toContain('1 lépés')
+    // guard against a plural-form bug ("1 lépések"); Hungarian uses singular noun
+    expect(wrapper.get('[data-testid="detail-summary"]').text()).not.toContain('1 lépések')
 
     // single step is the last step -> completion wording
     const result = stepPart(wrapper, 0, 'funnel-step-result').text()
     expect(result).toBe(expectedResult(singleStep.steps[0], true))
-    expect(result).toContain('complete')
-    expect(result).not.toContain('continue')
+    expect(result).toContain('befejezi')
+    expect(result).not.toContain('lép tovább')
 
     // the lone step is the denominator -> full-width bar
     expect(stepPart(wrapper, 0, 'funnel-step-bar').element.style.width).toBe('100%')
@@ -287,11 +302,11 @@ describe('FunnelDetail — AC5: zero-views middle step', () => {
   it('shows 0 people, 0% bar, "0.0% continue · 0.0% drop off (0 people lost)", no NaN, no throw', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: zeroMiddle } })
 
-    expect(stepPart(wrapper, 1, 'funnel-step-views').text()).toBe('0 people')
+    expect(stepPart(wrapper, 1, 'funnel-step-views').text()).toBe('0 fő')
     expect(stepPart(wrapper, 1, 'funnel-step-bar').element.style.width).toBe('0%')
 
     const result = stepPart(wrapper, 1, 'funnel-step-result').text()
-    expect(result).toBe('0.0% continue · 0.0% drop off (0 people lost)')
+    expect(result).toBe('0,0% lép tovább · 0,0% lemorzsolódik (0 fő kiesik)')
     expect(result).toBe(expectedResult(zeroMiddle.steps[1], false))
 
     expect(wrapper.get('[data-testid="detail-view"]').text()).not.toContain('NaN')
@@ -317,15 +332,17 @@ describe('FunnelDetail — AC6: singular "1 person" guard', () => {
   it('non-last step with abs===1 reads "1 person lost"', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: singularNonLast } })
     const result = stepPart(wrapper, 0, 'funnel-step-result').text()
-    expect(result).toContain('1 person lost')
-    expect(result).not.toContain('1 people')
+    expect(result).toContain('1 fő kiesik')
+    // Hungarian noun is invariant; guard against a plural-form bug ("1 fők")
+    expect(result).not.toContain('1 fők')
   })
 
-  it('last step with abs===1 reads "1 person didn\'t complete"', () => {
+  it('last step with abs===1 reads "1 fő nem fejezte be"', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: singularLast } })
     const result = stepPart(wrapper, 1, 'funnel-step-result').text()
-    expect(result).toContain("1 person didn't complete")
-    expect(result).not.toContain('1 people')
+    expect(result).toContain('1 fő nem fejezte be')
+    // Hungarian noun is invariant; guard against a plural-form bug ("1 fők")
+    expect(result).not.toContain('1 fők')
   })
 })
 
@@ -387,28 +404,35 @@ describe('FunnelDetail — Iter4: worst-step callout (camp_001, note present)', 
     expect(callout(wrapper).attributes('role')).toBe('status')
   })
 
-  it('primary copy contains the lib-built worst-step sentence (Step 2 — Email capture, 73.4%, 2,350, 26.6%)', () => {
+  it('headline + detail carry the lib-built worst-step facts (Step 2 — Email capture, 73,4%, 2 350, 26,6%)', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
-    const text = callout(wrapper).text()
-    // toContain (not ===): the container also holds the decorative aria-hidden ⚠
-    // glyph and the sibling note <p>, neither of which belong to the primary copy.
-    expect(text).toContain(expectedPrimary(camp001))
-    // anchor the load-bearing numbers explicitly
-    expect(text).toContain('Step 2 — Email capture')
-    expect(text).toContain('73.4%')
-    expect(text).toContain('2,350')
-    expect(text).toContain('26.6%')
+    const headline = calloutHeadline(wrapper)
+    const detail = calloutDetail(wrapper)
+    expect(headline.exists()).toBe(true)
+    expect(detail.exists()).toBe(true)
+    // Headline holds the decorative aria-hidden ⚠ glyph, so toContain (not ===).
+    expect(headline.text()).toContain(expectedHeadline(camp001))
+    // Detail element is clean copy -> strict equality is correct.
+    expect(detail.text()).toBe(expectedDetail(camp001))
+    // The old single-paragraph assertion verified four facts; map each onto the
+    // element that now carries it so the split loses no coverage:
+    //  - worst-step name -> headline
+    expect(headline.text()).toContain('2. lépés: Email capture')
+    //  - drop-off rate, absolute count, continue rate -> detail
+    expect(detail.text()).toContain('73,4%')
+    expect(detail.text()).toContain('2 350')
+    expect(detail.text()).toContain('26,6%')
   })
 
-  it('secondary note is present and equals the lib-built abs-worst sentence (Step 1 — Teaser, 6,800)', () => {
+  it('secondary note is present and equals the lib-built abs-worst sentence (Step 1 — Teaser, 6 800)', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp001 } })
     const note = calloutNote(wrapper)
     expect(note.exists()).toBe(true)
     // the note element holds clean copy (no glyph) -> strict equality is correct
     expect(note.text()).toBe(expectedSecondary(camp001))
     // name sourced from data (its en-dash differs from the em-dash separator)
-    expect(note.text()).toContain(`Step 1 — ${camp001.steps[0].name}`)
-    expect(note.text()).toContain('6,800')
+    expect(note.text()).toContain(`1. lépés: ${camp001.steps[0].name}`)
+    expect(note.text()).toContain('6 800')
   })
 })
 
@@ -416,7 +440,9 @@ describe('FunnelDetail — Iter4: agree fixture (camp_002, note absent)', () => 
   it('renders the callout but NO secondary note (rate-worst === absolute-worst)', () => {
     const wrapper = mount(FunnelDetail, { props: { campaign: camp002 } })
     expect(callout(wrapper).exists()).toBe(true)
-    expect(callout(wrapper).text()).toContain(expectedPrimary(camp002))
+    // headline names the worst step; detail carries rate/abs/continue — lib-tied
+    expect(calloutHeadline(wrapper).text()).toContain(expectedHeadline(camp002))
+    expect(calloutDetail(wrapper).text()).toBe(expectedDetail(camp002))
     // note absent because worstStep.index === worstStepByAbsolute.index
     expect(calloutNote(wrapper).exists()).toBe(false)
   })

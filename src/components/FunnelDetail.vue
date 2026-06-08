@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { overallConversion, worstStep, worstStepByAbsolute } from '../lib/funnel.js'
 import { formatPercent, formatCount } from '../lib/format.js'
 import FunnelStep from './FunnelStep.vue'
@@ -16,16 +16,17 @@ const emit = defineEmits(['back'])
 const steps = computed(() => props.campaign.steps ?? [])
 
 const stepCount = computed(() => steps.value.length)
-const stepCountLabel = computed(
-  () => `${stepCount.value} ${stepCount.value === 1 ? 'step' : 'steps'}`,
-)
+const stepCountLabel = computed(() => `${stepCount.value} lépés`)
 
 // Display-only formatting; the math comes from funnel.js.
 const conversionLabel = computed(() => formatPercent(overallConversion(props.campaign)))
 
+// Hungarian device labels for the known dataset values; unknown values fall
+// back to the raw value capitalised (the dataset itself stays untranslated).
+const DEVICE_LABELS = { desktop: 'Asztali', mobile: 'Mobil' }
 const deviceLabel = computed(() => {
   const device = props.campaign.device ?? ''
-  return device.charAt(0).toUpperCase() + device.slice(1)
+  return DEVICE_LABELS[device] ?? device.charAt(0).toUpperCase() + device.slice(1)
 })
 
 // One bar denominator for the whole funnel = the largest views across the
@@ -42,19 +43,19 @@ const worst = computed(() => worstStep(props.campaign))
 const worstAbs = computed(() => worstStepByAbsolute(props.campaign))
 const highlightActive = computed(() => steps.value.length > 1 && worst.value !== null)
 
-// Singular guard so "1 person" reads naturally (matches Iteration 3).
-function peopleNoun(count) {
-  return count === 1 ? 'person' : 'people'
-}
-
-const calloutPrimary = computed(() => {
+// Split for scannability: a bold-red headline (which step) plus a neutral,
+// normal-weight detail line (the numbers). The math still comes from funnel.js.
+const calloutHeadline = computed(() => {
+  if (!highlightActive.value) return ''
+  const w = worst.value
+  return `Legnagyobb lemorzsolódás — ${w.index + 1}. lépés: ${w.step.name}`
+})
+const calloutDetail = computed(() => {
   if (!highlightActive.value) return ''
   const w = worst.value
   return (
-    `Biggest drop-off is at Step ${w.index + 1} — ${w.step.name}: ` +
-    `${formatPercent(w.dropoffRate)} of people leave here ` +
-    `(${formatCount(w.dropoffAbs)} ${peopleNoun(w.dropoffAbs)}), ` +
-    `and only ${formatPercent(w.conversion)} continue.`
+    `A látogatók ${formatPercent(w.dropoffRate)}-a távozik itt ` +
+    `(${formatCount(w.dropoffAbs)} fő); csak ${formatPercent(w.conversion)} lép tovább.`
   )
 })
 
@@ -67,10 +68,17 @@ const calloutNote = computed(() => {
   const a = worstAbs.value
   const w = worst.value
   return (
-    `Heads up: Step ${a.index + 1} — ${a.step.name} loses the most people overall ` +
-    `(${formatCount(a.dropoffAbs)}), but Step ${w.index + 1} loses the largest share.`
+    `Megjegyzés: összességében a legtöbb látogatót ez a lépés veszíti el — ` +
+    `${a.index + 1}. lépés: ${a.step.name} (${formatCount(a.dropoffAbs)} fő), ` +
+    `de arányát tekintve a legnagyobb lemorzsolódás a(z) ${w.index + 1}. lépésnél van.`
   )
 })
+
+// Focus target on view switch (App.vue): moving focus to the back button keeps
+// keyboard orientation when the list unmounts. Exposed so the parent can call
+// it after nextTick, without breaking the component boundary.
+const backButtonRef = ref(null)
+defineExpose({ focus: () => backButtonRef.value?.focus() })
 </script>
 
 <template>
@@ -80,29 +88,30 @@ const calloutNote = computed(() => {
     :data-campaign-id="campaign.id"
   >
     <button
+      ref="backButtonRef"
       type="button"
-      class="inline-flex cursor-pointer items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+      class="inline-flex cursor-pointer items-center gap-1 rounded-full border border-border bg-bg px-4 py-1.5 text-sm font-semibold text-ink-muted shadow-sm transition hover:border-primary/40 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       data-testid="back-button"
       @click="emit('back')"
     >
       <span aria-hidden="true">&larr;</span>
-      Back to campaigns
+      Vissza a kampányokhoz
     </button>
 
     <header class="mt-6">
       <div class="flex items-start justify-between gap-3">
-        <h1 class="min-w-0 break-words text-2xl font-semibold text-slate-900">
+        <h1 class="min-w-0 break-words text-3xl font-extrabold tracking-tight text-ink">
           {{ campaign.name }}
         </h1>
         <span
-          class="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600"
+          class="shrink-0 rounded-full bg-bg-soft px-2.5 py-0.5 text-xs font-semibold text-ink-muted ring-1 ring-border"
           data-testid="detail-device"
         >
           {{ deviceLabel }}
         </span>
       </div>
-      <p class="mt-1 text-sm text-slate-500" data-testid="detail-summary">
-        {{ stepCountLabel }} · {{ conversionLabel }} overall conversion
+      <p class="mt-2 text-sm text-ink-muted" data-testid="detail-summary">
+        {{ stepCountLabel }} · {{ conversionLabel }} összesített konverzió
       </p>
     </header>
 
@@ -114,16 +123,25 @@ const calloutNote = computed(() => {
     <div data-testid="callout-slot">
       <div
         v-if="highlightActive"
-        class="mt-6 rounded-lg border-l-4 border-rose-500 bg-rose-50 p-4"
+        class="mt-6 rounded-2xl border border-warn/20 border-l-4 border-l-warn bg-warn-soft p-5 shadow-sm"
         data-testid="worst-step-callout"
         role="status"
       >
-        <p class="text-sm font-medium text-rose-900">
-          <span aria-hidden="true">⚠</span> {{ calloutPrimary }}
+        <p
+          class="text-sm font-semibold text-warn"
+          data-testid="worst-step-callout-headline"
+        >
+          <span aria-hidden="true">⚠</span> {{ calloutHeadline }}
+        </p>
+        <p
+          class="mt-1 text-sm font-normal text-ink-muted"
+          data-testid="worst-step-callout-detail"
+        >
+          {{ calloutDetail }}
         </p>
         <p
           v-if="showNote"
-          class="mt-2 text-sm text-rose-700"
+          class="mt-2 text-sm text-ink-muted"
           data-testid="worst-step-callout-note"
         >
           {{ calloutNote }}
@@ -131,7 +149,9 @@ const calloutNote = computed(() => {
       </div>
     </div>
 
-    <div class="mt-6 flex flex-col gap-6">
+    <h2 class="mt-8 text-xl font-bold text-ink">A tölcsér lépései</h2>
+
+    <div class="stagger mt-4 flex flex-col gap-6">
       <FunnelStep
         v-for="(step, index) in steps"
         :key="index"

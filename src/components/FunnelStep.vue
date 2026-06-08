@@ -29,16 +29,13 @@ const barStyle = computed(() => ({ width: `${barWidthPercent.value}%` }))
 // legible; a genuinely zero-views step shows an empty track (no min-width).
 const hasBar = computed(() => props.step.views > 0)
 
-const viewsLabel = computed(() => `${formatCount(props.step.views)} people`)
-
-// Singular guard so "1 person" reads naturally.
-const lostNoun = computed(() => (dropoffAbs.value === 1 ? 'person' : 'people'))
+const viewsLabel = computed(() => `${formatCount(props.step.views)} fő`)
 
 const resultLine = computed(() => {
   if (props.isLast) {
-    return `${formatPercent(conversion.value)} complete · ${formatCount(dropoffAbs.value)} ${lostNoun.value} didn't complete`
+    return `${formatPercent(conversion.value)} befejezi · ${formatCount(dropoffAbs.value)} fő nem fejezte be`
   }
-  return `${formatPercent(conversion.value)} continue · ${formatPercent(dropoffRate.value)} drop off (${formatCount(dropoffAbs.value)} ${lostNoun.value} lost)`
+  return `${formatPercent(conversion.value)} lép tovább · ${formatPercent(dropoffRate.value)} lemorzsolódik (${formatCount(dropoffAbs.value)} fő kiesik)`
 })
 </script>
 
@@ -49,22 +46,22 @@ const resultLine = computed(() => {
     :data-is-worst="isWorst ? 'true' : null"
     :class="
       isWorst
-        ? 'rounded-lg border-l-4 border-rose-500 bg-rose-50 p-4'
+        ? 'rounded-2xl border border-warn/20 border-l-4 border-l-warn bg-warn-soft p-4 shadow-sm'
         : ''
     "
   >
     <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        Step {{ index + 1 }}
+      <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+        {{ index + 1 }}. lépés
       </span>
       <h3
-        class="min-w-0 break-words text-base font-medium text-slate-900"
+        class="min-w-0 break-words text-base font-bold text-ink"
         data-testid="funnel-step-name"
       >
         {{ step.name }}
       </h3>
       <span
-        class="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600"
+        class="shrink-0 rounded-full bg-bg-soft px-2.5 py-0.5 text-xs font-medium text-ink-muted ring-1 ring-border"
         :class="isWorst ? '' : 'ml-auto'"
         data-testid="funnel-step-type"
       >
@@ -72,31 +69,31 @@ const resultLine = computed(() => {
       </span>
       <span
         v-if="isWorst"
-        class="ml-auto shrink-0 rounded-full bg-rose-600 px-2.5 py-0.5 text-xs font-semibold text-white"
+        class="ml-auto shrink-0 rounded-full bg-warn px-2.5 py-0.5 text-xs font-semibold text-white shadow-sm"
         data-testid="worst-step-badge"
       >
-        <span aria-hidden="true">⚠</span> Biggest drop-off
+        <span aria-hidden="true">⚠</span> Legnagyobb lemorzsolódás
       </span>
     </div>
 
     <div class="mt-2 flex items-center gap-3">
-      <div class="h-4 w-full overflow-hidden rounded-full bg-slate-100">
+      <div class="h-4 w-full overflow-hidden rounded-full bg-bg-soft ring-1 ring-border">
         <div
-          class="h-full rounded-full"
-          :class="[isWorst ? 'bg-rose-500' : 'bg-indigo-500', { 'min-w-[0.5rem]': hasBar }]"
+          class="h-full rounded-full transition-all duration-300"
+          :class="[isWorst ? 'bg-warn' : 'bg-primary', { 'min-w-[0.5rem]': hasBar }]"
           :style="barStyle"
           data-testid="funnel-step-bar"
         />
       </div>
       <span
-        class="shrink-0 text-sm font-medium tabular-nums text-slate-700"
+        class="shrink-0 text-sm font-semibold tabular-nums text-ink"
         data-testid="funnel-step-views"
       >
         {{ viewsLabel }}
       </span>
     </div>
 
-    <p class="mt-1.5 text-sm text-slate-500" data-testid="funnel-step-result">
+    <p class="mt-1.5 text-sm text-ink-muted" data-testid="funnel-step-result">
       {{ resultLine }}
     </p>
   </div>
