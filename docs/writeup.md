@@ -35,7 +35,7 @@ számot külön mutatjuk; a javaslatok 3 egyszerű szabályra korlátozódnak.
 A lényeg egy **tiszta számítási réteg** a `src/lib/` mappában (`funnel.js`, `insights.js`,
 `format.js`), amelyet a megjelenítő Vue-komponensek használnak — a komponensek soha nem számolnak
 újra, csak megjelenítenek. Az adatokat a `useCampaigns` composable tölti be. A két képernyő közti
-váltást (lista ↔ részletek) az `App.vue` intézi kiválasztási állapot alapján. A felület
+váltást (lista ↔ részletek) az `App.vue` intézi kiválasztási állapot alapján.
 Fő komponensek: `CampaignList` / `CampaignCard` (lista), `FunnelDetail` / `FunnelStep` (tölcsér + legrosszabb lépés
 kiemelése), `Insights` (javaslatok). Az **akadálymentességre** is figyeltünk: következetes
 címsor-hierarchia (h1→h2→h3), billentyűzetes fókuszkezelés a lista ↔ részletek nézetváltáskor,
@@ -52,6 +52,15 @@ iterációra**, specifikáció- és tesztvezérelt módon haladt; az ügynökök
 orchestrator oldotta fel. A *ui-designer* a felület szerkezetét és elrendezését tervezte. Az ügynökök
 **tartós memóriát** is használtak, így a korábbi iterációk
 emlékei (függvény-szignatúrák, adatok, konvenciók) iterációk között is megmaradtak.
+
+A **termékdöntéseket** ugyanakkor én hoztam, az AI a kivitelezést gyorsította. Én határoztam meg
+a v1 hatókört és a tudatos kihagyásokat (2. szakasz); én döntöttem úgy, hogy a „legrosszabb lépést"
+**arány** alapján jelöljük ki, ne abszolút darabszám alapján — egy kis forgalmú, de 90%-os
+lemorzsolódású lépés nagyobb probléma, mint egy nagy forgalmú, egészséges arányú —, az abszolút
+veszteséget pedig külön megjegyzés mutatja, ha a kettő eltér. A javaslat-szabályok küszöbeit is én
+választottam a minta-adatok eloszlása alapján (pl. egy e-mail-lépésnél 60% feletti lemorzsolódás
+már kritikus, mert ott a súrlódás csökkenthető a leginkább). A generált kódot iterációnként
+átnéztem; ami nem tetszett (elnevezések, szövegek, küszöbök), azt visszadobtam vagy átírattam.
 
 ## 5. Mit fejlesztenék a v2-ben
 
